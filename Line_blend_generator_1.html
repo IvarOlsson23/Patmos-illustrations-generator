@@ -1,0 +1,1278 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Line blend generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:dark;
+  /* Patmos design system tokens */
+  --brand:#2C5BFF;              /* Brand/Blue/50 */
+  --shell:#000000;              /* Global/Background/background */
+  --panel:#000000;
+  --ink:#FFFFFF;                /* Global/Text/text-primary */
+  --ink-2:#C6C6C6;              /* Global/Text/text-secondary */
+  --ink-3:#C6C6C6;
+  --hair:#3D3D3D;               /* Global/Border/border-subtle */
+  --hair-strong:#3D3D3D;
+  /* artwork, not UI: the asset keeps its own board colour */
+  --art:#141414;
+  --teal:#20E6BF;
+  /* Components/Button */
+  --round:9999px;               /* Round */
+  --btn-primary:#FFFFFF;        /* Components/Button/button-primary */
+  --btn-primary-hover:#F5F5F5;  /* Components/Button/button-primary-hover */
+  --btn-secondary:#FFFFFF;      /* Components/Button/button-secondary */
+  --btn-secondary-hover:#F5F5F5;/* Components/Button/button-secondary-hover */
+  --text-inverse:#000000;       /* Global/Text/text-primary-inverse */
+  --radius:8px;                 /* inferred: input fields have no token */
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:border-box}
+html{height:100%}
+body{margin:0;height:100%;background:var(--shell);color:var(--ink);
+  font-family:"Graphik","Graphik Web",Inter,"Helvetica Neue",Helvetica,Arial,sans-serif;
+  font-size:16px;line-height:1.4;letter-spacing:0;
+  font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+.app{display:flex;height:100%;width:100%}
+.stage{flex:1;min-width:0;display:flex;flex-direction:column;padding:20px;gap:20px}
+.canvas-wrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;border:1px solid var(--hair)}
+canvas{display:block;max-width:100%;max-height:100%;background:var(--art)}
+.stage-foot{display:flex;align-items:center;gap:20px;flex-wrap:wrap;color:var(--ink-2);font-size:14px}
+.stage-foot b{color:var(--ink-2);font-weight:500}
+.brandchip{display:inline-flex;align-items:center;gap:7px;color:var(--ink-2)}
+.brandchip i{width:12px;height:12px;background:var(--teal);display:block;border:1px solid var(--hair)}
+.colorrow{display:flex;align-items:center;gap:12px}
+.colorrow label{font-size:16px;color:var(--ink);flex:1 0 auto}
+.swatch{width:40px;height:40px;flex:none;padding:0;cursor:pointer;background:#000;
+  border:1px solid var(--hair);border-radius:var(--radius)}
+.swatch:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.picker{margin-top:12px;padding:12px;border:1px solid var(--hair);border-radius:var(--radius)}
+.picker[hidden]{display:none}
+.sv{position:relative;width:100%;height:124px;border-radius:6px;cursor:crosshair;touch-action:none;
+  background:linear-gradient(to top,#000,rgba(0,0,0,0)),linear-gradient(to right,#fff,var(--hue,#f00))}
+.sv-dot{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;
+  border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.6);pointer-events:none}
+input.hue{width:100%;margin-top:12px;height:18px;cursor:pointer}
+input.hue::-webkit-slider-runnable-track{height:8px;border-radius:4px;
+  background:linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)}
+input.hue::-moz-range-track{height:8px;border-radius:4px;
+  background:linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)}
+input.hue::-webkit-slider-thumb{margin-top:-2px}
+.hexin{width:104px;flex:none;height:40px;padding:0 12px;font:inherit;font-size:14px;
+  color:var(--ink);background:#000;border:1px solid var(--hair);border-radius:var(--radius);
+  text-transform:uppercase;letter-spacing:.02em}
+.hexin:focus-visible{outline:2px solid var(--brand);outline-offset:-1px}
+.hexin.bad{border-color:#FF5C5C}
+
+.rail{width:372px;flex:none;border-left:1px solid var(--hair);background:var(--panel);
+  overflow-y:auto;overscroll-behavior:contain;padding-bottom:26px}
+.rail-head{padding:20px 20px 20px;border-bottom:1px solid var(--hair)}
+.rail-head h1{margin:0 0 20px;font-size:24px;font-weight:500;letter-spacing:-1px;line-height:1.2}
+.modenav{margin-top:14px;font-size:14px}
+.modenav.fwd{text-align:right}
+.modenav.back{text-align:left}
+.modenav[hidden]{display:none}
+.modelink{color:var(--ink-2);text-decoration:none;display:inline-flex;align-items:center;gap:4px;cursor:pointer;background:none;border:0;font:inherit;padding:0}
+.modelink:hover{color:var(--ink)}
+.modelink:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}
+.timeline{position:relative;padding:22px 0 4px;cursor:pointer;touch-action:none;user-select:none;outline:none;margin-top:4px}
+.timeline[hidden]{display:none}
+.timeline:focus-visible{box-shadow:0 0 0 2px var(--brand);border-radius:4px}
+.ticks{position:absolute;left:0;right:0;top:0;height:16px;font-size:12px;color:var(--ink-2)}
+.ticks span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.ticks span:first-child{transform:none}
+.ticks span:last-child{transform:translateX(-100%)}
+.lane{position:relative;height:26px;margin-bottom:4px}
+.bar{position:absolute;top:0;bottom:0;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden;
+  font-size:13px;line-height:26px;padding:0 10px;white-space:nowrap;color:var(--ink-2)}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:var(--ink);opacity:.16;width:0}
+.bar b{position:relative;font-weight:500;color:var(--ink)}
+.bar.rev{opacity:.75}
+.head{position:absolute;top:18px;bottom:0;width:2px;margin-left:-1px;background:var(--ink);pointer-events:none}
+.tl-foot{display:flex;justify-content:space-between;gap:16px;color:var(--ink-2);font-size:14px;flex-wrap:wrap;margin-top:8px}
+.tl-foot[hidden]{display:none}
+.check{display:flex;gap:10px;align-items:center;font-size:14px;cursor:pointer;margin-top:4px}
+.check input{accent-color:var(--ink);width:18px;height:18px}
+section{border-bottom:1px solid var(--hair);padding:20px}
+/* Accordion Item: 16px padding, 16px gap, Headline S title, 24px chevron */
+section.flush{padding:0;border-bottom:0}
+.acc{border-bottom:1px solid var(--hair)}
+.acc summary{display:flex;align-items:center;gap:16px;padding:16px;cursor:pointer;
+  list-style:none;font-size:20px;font-weight:500;line-height:26px;letter-spacing:-1px;color:var(--ink)}
+.acc summary::-webkit-details-marker{display:none}
+.acc summary::marker{content:""}
+.acc summary:hover{color:var(--btn-secondary-hover)}
+.acc summary:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
+.chev{margin-left:auto;width:24px;height:24px;flex:none;transition:transform .15s}
+.acc[open] .chev{transform:rotate(180deg)}
+.acc-body{padding:0 16px 16px}
+section>h2{margin:0 0 20px;font-size:16px;font-weight:500;color:var(--ink)}
+
+.ctrl,.mctrl{margin:0 0 20px}
+.ctrl:last-child,.mctrl:last-child{margin-bottom:0}
+.ctrl .row,.mctrl .row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:4px}
+.ctrl label,.mctrl label{font-size:16px;font-weight:400;color:var(--ink)}
+.ctrl output,.mctrl output{font-size:16px;color:var(--ink-2)}
+.ctrl .hint,.mctrl .hint{font-size:14px;line-height:1.35;color:var(--ink-2);margin-top:4px}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:16px;background:transparent;cursor:ew-resize;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--hair-strong)}
+input[type=range]::-moz-range-track{height:2px;background:var(--hair-strong)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--ink);margin-top:-5px;transition:background .12s}
+input[type=range]::-moz-range-thumb{width:12px;height:12px;border:0;border-radius:50%;background:var(--ink)}
+input[type=range]:hover::-webkit-slider-thumb,input[type=range]:active::-webkit-slider-thumb{background:var(--brand)}
+input[type=range]:hover::-moz-range-thumb{background:var(--brand)}
+input[type=range]:focus-visible{outline:2px solid var(--brand);outline-offset:4px}
+
+button{font:inherit}
+/* Button / Secondary / Small is the default: 32px tall, 16px sides, pill */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:12px;
+  height:32px;padding:0 16px;border-radius:var(--round);
+  font-size:14px;line-height:18.2px;font-weight:400;letter-spacing:0;
+  color:var(--ink);background:transparent;border:1px solid var(--btn-secondary);
+  cursor:pointer;transition:color .12s,border-color .12s,background .12s}
+.btn:hover{color:var(--btn-secondary-hover);border-color:var(--btn-secondary-hover)}
+/* Size / Medium */
+.btn.md,.btn.wide{height:40px;padding:0 24px}
+.btn.wide{width:100%}
+/* Variant / Primary */
+.btn.primary,.btn[aria-pressed=true]{
+  color:var(--text-inverse);background:var(--btn-primary);border-color:var(--btn-primary)}
+.btn.primary:hover,.btn[aria-pressed=true]:hover{
+  color:var(--text-inverse);background:var(--btn-primary-hover);border-color:var(--btn-primary-hover)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn:disabled:hover{color:var(--ink);border-color:var(--btn-secondary)}
+.btn.primary:disabled:hover{color:var(--text-inverse);background:var(--btn-primary)}
+button:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:var(--round)}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.note{color:var(--ink-2);font-size:14px;margin:20px 0 0;max-width:38ch}
+.exres{margin:16px 0 12px;font-size:16px;color:var(--ink)}
+textarea{width:100%;height:64px;background:#000;color:var(--ink-2);border:1px solid var(--hair);
+  border-radius:var(--radius);padding:8px 10px;font:inherit;font-size:14px;resize:vertical}
+textarea:focus-visible{outline:2px solid var(--brand);outline-offset:-1px}
+@media (max-width:900px){
+  .app{flex-direction:column;height:auto}
+  .rail{width:100%;border-left:0;border-top:1px solid var(--hair)}
+  .stage{padding:14px;height:58vh}
+  body{height:auto}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="stage">
+    <div class="canvas-wrap" id="wrap"><canvas id="c"></canvas></div>
+    <div class="timeline" id="tl" tabindex="0" role="slider" aria-label="Timeline" aria-valuemin="0" aria-valuemax="10" aria-valuenow="0" hidden>
+      <div class="ticks" id="ticks"></div>
+      <div id="lanes"></div>
+      <div class="head" id="head"></div>
+    </div>
+    <div class="tl-foot" id="tlFoot" hidden><span id="time">0.0 / 10.0 s</span><span>Space plays/pauses, arrow keys step</span></div>
+    <div class="stage-foot" id="stageFootStatic">
+      <span class="brandchip"><i id="chipSwatch"></i><span id="chipHex">#20E6BF</span></span>
+      <span><b id="statFmt">—</b></span>
+      <span><b id="statRes">—</b></span>
+    </div>
+  </div>
+
+  <aside class="rail">
+    <div class="rail-head">
+      <h1 id="railTitle">Line blend generator</h1>
+      <button class="btn primary wide" id="randomize">Randomize</button>
+      <div class="btns" style="margin-top:6px"><button class="btn md" id="reset" style="flex:1">Reset</button></div>
+      <div class="modenav fwd" id="modeNavFwd"><button type="button" class="modelink" id="toVideoNav">Video creator <span aria-hidden="true">›</span></button></div>
+      <div class="modenav back" id="modeNavBack" hidden><button type="button" class="modelink" id="toGenNav"><span aria-hidden="true">‹</span> Line blend generator</button></div>
+    </div>
+
+    <div id="generatorView">
+    <section class="flush">
+      <details class="acc">
+        <summary>Customize
+          <svg class="chev" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9.5L12 15.5L18 9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </summary>
+        <div class="acc-body">
+          <div class="ctrl" data-k="spread" data-min="0" data-max="1" data-step="0.005" data-label="Angle" data-pct="1" data-hint="Opening between the two rails, 50° to 125°."></div>
+          <div class="ctrl" data-k="bend" data-min="0" data-max="1" data-step="0.005" data-label="Bend" data-pct="1" data-hint="Curvature of each individual line."></div>
+          <div class="ctrl" data-k="twist" data-min="0" data-max="1" data-step="0.005" data-label="Twist" data-pct="1" data-hint="How far the lines wind around each other. 50% is none."></div>
+          <div class="ctrl" data-k="skew" data-min="0" data-max="1" data-step="0.005" data-label="Asymmetry" data-pct="1" data-hint="Makes one rail longer than the other."></div>
+          <div class="ctrl" data-k="rot" data-min="0" data-max="360" data-step="1" data-label="Rotation" data-unit="°" data-hint="Turns the whole mark. 0° and 360° are the same."></div>
+          <div class="ctrl" data-k="fade" data-min="1.5" data-max="3" data-step="0.01" data-label="Fade" data-hint="How fast the ink drops off toward the line ends."></div>
+          <div class="ctrl" data-k="weight" data-min="0.3" data-max="1" data-step="0.01" data-label="Weight" data-hint="Stroke thickness."></div>
+        </div>
+      </details>
+    </section>
+
+    <section>
+      <h2>Colors</h2>
+      <div class="ctrl" data-k="bg" data-min="0" data-max="255" data-step="1" data-label="Background" data-gray="1" data-hint="Pure black through to pure white."></div>
+      <div class="colorrow">
+        <label for="inkHex">Artwork</label>
+        <button type="button" class="swatch" id="swatchBtn" aria-expanded="false" aria-label="Pick artwork colour"></button>
+        <input type="text" class="hexin" id="inkHex" spellcheck="false" maxlength="7" aria-label="Artwork colour hex">
+      </div>
+      <div class="picker" id="picker" hidden>
+        <div class="sv" id="sv"><div class="sv-dot" id="svDot"></div></div>
+        <input type="range" class="hue" id="hue" min="0" max="360" step="1" aria-label="Hue">
+      </div>
+      <p class="note">Colors sit outside Randomize. Only Customize is shuffled.</p>
+    </section>
+
+    <section>
+      <h2>Frame</h2>
+      <div class="ctrl" data-k="zoom" data-min="0.4" data-max="2.6" data-step="0.01" data-label="Zoom"></div>
+      <div class="btns" id="ratios" style="margin-top:14px"></div>
+      <p class="note">Zoom is a camera move on top of the automatic fit. Randomize leaves it alone.</p>
+    </section>
+
+    <section>
+      <h2>Export</h2>
+      <div class="btns" id="scales"></div>
+      <div class="btns" id="formats" style="margin-top:8px"></div>
+      <p class="exres" id="exres">—</p>
+      <button class="btn primary md" id="exportBtn" style="width:100%">Export</button>
+      <p class="note" id="exportNote">One path per line, so the SVG opens clean in Figma and Illustrator.</p>
+    </section>
+
+    <section>
+      <h2>Share a variation</h2>
+      <div class="btns" style="margin-bottom:8px">
+        <button class="btn" id="copy">Copy settings</button>
+        <button class="btn" id="apply">Apply pasted</button>
+      </div>
+      <textarea id="json" spellcheck="false" aria-label="Settings"></textarea>
+    </section>
+    </div>
+
+    <div id="videoView" hidden>
+      <section>
+        <h2>Playback</h2>
+        <div class="btns" style="margin-top:6px">
+          <button class="btn primary md" id="vidPlay" style="flex:1">Pause preview</button>
+          <button class="btn md" id="vidRestart">Restart</button>
+          <button class="btn md" id="vidLoop" aria-pressed="true">Loop</button>
+        </div>
+        <div class="mctrl" data-k="len" data-min="6" data-max="20" data-step="0.5" data-label="Loop length" data-unit=" s" data-dec="1" data-hint="Longer is slower. Every beat, hold and trail stretches with it." style="margin-top:20px"></div>
+      </section>
+
+      <section>
+        <h2>Format</h2>
+        <div class="btns" id="vidRatios"></div>
+      </section>
+
+      <section>
+        <h2>Export</h2>
+        <div class="btns" id="vidScales"></div>
+        <div class="btns" id="vidFormats" style="margin-top:8px"></div>
+        <p class="exres" id="vidExRes">—</p>
+        <button class="btn primary md" id="vidExportBtn" style="width:100%">Record loop</button>
+        <p class="note" id="vidExportNote">Renders the full loop frame by frame at the resolution above, then downloads it. MP4 (H.264) plays everywhere, including Keynote, PowerPoint and social uploads; WebM is smaller but less widely supported. Larger sizes take longer to render.</p>
+      </section>
+
+      <section>
+        <h2>Motion</h2>
+        <div class="mctrl" data-k="soft" data-min="0" data-max="1" data-step="0.01" data-label="Softness" data-pct="1" data-hint="Lower top speed on every beat. Starts and stops stay smooth at any setting."></div>
+        <div class="mctrl" data-k="hold" data-min="0" data-max="1" data-step="0.1" data-label="Hold at the turns" data-unit=" s" data-hint="The hold fits inside the loop length, so more hold means a faster run. The turn stays seamless even with no hold."></div>
+        <div class="mctrl" data-k="mass" data-min="0" data-max="1" data-step="0.01" data-label="Mass" data-pct="1" data-hint="The bright middle leads and the ends trail, so the lines bow into waves."></div>
+        <div class="mctrl" data-k="momentum" data-min="0" data-max="1" data-step="0.01" data-label="Momentum" data-pct="1" data-hint="Lines carry a little past where a move slows down, then settle."></div>
+        <div class="mctrl" data-k="stagger" data-min="0" data-max="0.75" data-step="0.05" data-label="Line stagger" data-unit=" s" data-hint="The lines nearest the brightest part release first in beat 1, and re-tangle last on the way back."></div>
+        <div class="mctrl" data-k="bow" data-min="0" data-max="1" data-step="0.01" data-label="Curve after beat 1" data-pct="1" data-hint="Flattens to a third in beat 2. The lines never touch."></div>
+        <div class="mctrl" data-k="space" data-min="0" data-max="1" data-step="0.01" data-label="Line spacing" data-pct="1"></div>
+        <div class="mctrl" data-k="share" data-min="0.15" data-max="0.6" data-step="0.01" data-label="Lines in the final frame" data-lines="1" data-hint="The brightest run of lines is chosen and fills the lower-right half."></div>
+        <label class="check"><input type="checkbox" id="vidThick"> Thicker lines when zoomed in</label>
+      </section>
+    </div>
+  </aside>
+</div>
+
+<script>
+/* Inlined build of webm-muxer (MIT, https://github.com/Vanilagy/webm-muxer),
+   minified. Pairs with WebCodecs' VideoEncoder to mux self-timestamped frames
+   into a WebM container for the video export below — exposes window.WebMMuxer. */
+var WebMMuxer=(()=>{var xt=Object.defineProperty;var Qe=Object.getOwnPropertyDescriptor;var Xe=Object.getOwnPropertyNames;var Je=Object.prototype.hasOwnProperty;var ti=(t,i)=>{for(var s in i)xt(t,s,{get:i[s],enumerable:!0})},ei=(t,i,s,r)=>{if(i&&typeof i=="object"||typeof i=="function")for(let n of Xe(i))!Je.call(t,n)&&n!==s&&xt(t,n,{get:()=>i[n],enumerable:!(r=Qe(i,n))||r.enumerable});return t};var ii=t=>ei(xt({},"__esModule",{value:!0}),t);var bi={};ti(bi,{ArrayBufferTarget:()=>Ee,FileSystemWritableFileStreamTarget:()=>Te,Muxer:()=>wi,StreamTarget:()=>ee,SubtitleEncoder:()=>gi});var Jt=(t,i,s)=>{if(!i.has(t))throw TypeError("Cannot "+s)},e=(t,i,s)=>(Jt(t,i,"read from private field"),s?s.call(t):i.get(t)),a=(t,i,s)=>{if(i.has(t))throw TypeError("Cannot add the same private member more than once");i instanceof WeakSet?i.add(t):i.set(t,s)},l=(t,i,s,r)=>(Jt(t,i,"write to private field"),r?r.call(t,s):i.set(t,s),s),h=(t,i,s)=>(Jt(t,i,"access private method"),s),ke=class{constructor(t){this.value=t}},te=class{constructor(t){this.value=t}},_e=t=>t<256?1:t<65536?2:t<1<<24?3:t<2**32?4:t<2**40?5:6,si=t=>{if(t<127)return 1;if(t<16383)return 2;if(t<(1<<21)-1)return 3;if(t<(1<<28)-1)return 4;if(t<2**35-1)return 5;if(t<2**42-1)return 6;throw new Error("EBML VINT size not supported "+t)},F=(t,i,s)=>{let r=0;for(let n=i;n<s;n++){let f=Math.floor(n/8),w=t[f],u=7-(n&7),v=(w&1<<u)>>u;r<<=1,r|=v}return r},ri=(t,i,s,r)=>{for(let n=i;n<s;n++){let f=Math.floor(n/8),w=t[f],u=7-(n&7);w&=~(1<<u),w|=(r&1<<s-n-1)>>s-n-1<<u,t[f]=w}};var Ft=class{},Ee=class extends Ft{constructor(){super(...arguments),this.buffer=null}},ee=class extends Ft{constructor(t){if(super(),this.options=t,typeof t!="object")throw new TypeError("StreamTarget requires an options object to be passed to its constructor.");if(t.onData){if(typeof t.onData!="function")throw new TypeError("options.onData, when provided, must be a function.");if(t.onData.length<2)throw new TypeError("options.onData, when provided, must be a function that takes in at least two arguments (data and position). Ignoring the position argument, which specifies the byte offset at which the data is to be written, can lead to broken outputs.")}if(t.onHeader&&typeof t.onHeader!="function")throw new TypeError("options.onHeader, when provided, must be a function.");if(t.onCluster&&typeof t.onCluster!="function")throw new TypeError("options.onCluster, when provided, must be a function.");if(t.chunked!==void 0&&typeof t.chunked!="boolean")throw new TypeError("options.chunked, when provided, must be a boolean.");if(t.chunkSize!==void 0&&(!Number.isInteger(t.chunkSize)||t.chunkSize<1024))throw new TypeError("options.chunkSize, when provided, must be an integer and not smaller than 1024.")}},Te=class extends Ft{constructor(t,i){if(super(),this.stream=t,this.options=i,!(t instanceof FileSystemWritableFileStream))throw new TypeError("FileSystemWritableFileStreamTarget requires a FileSystemWritableFileStream instance.");if(i!==void 0&&typeof i!="object")throw new TypeError("FileSystemWritableFileStreamTarget's options, when provided, must be an object.");if(i&&i.chunkSize!==void 0&&(!Number.isInteger(i.chunkSize)||i.chunkSize<=0))throw new TypeError("options.chunkSize, when provided, must be a positive integer")}},C,c,Pt,Se,Ot,Ce,Ht,Me,bt,$t,jt,We,Ie=class{constructor(){a(this,Pt),a(this,Ot),a(this,Ht),a(this,bt),a(this,jt),this.pos=0,a(this,C,new Uint8Array(8)),a(this,c,new DataView(e(this,C).buffer)),this.offsets=new WeakMap,this.dataOffsets=new WeakMap}seek(t){this.pos=t}writeEBMLVarInt(t,i=si(t)){let s=0;switch(i){case 1:e(this,c).setUint8(s++,128|t);break;case 2:e(this,c).setUint8(s++,64|t>>8),e(this,c).setUint8(s++,t);break;case 3:e(this,c).setUint8(s++,32|t>>16),e(this,c).setUint8(s++,t>>8),e(this,c).setUint8(s++,t);break;case 4:e(this,c).setUint8(s++,16|t>>24),e(this,c).setUint8(s++,t>>16),e(this,c).setUint8(s++,t>>8),e(this,c).setUint8(s++,t);break;case 5:e(this,c).setUint8(s++,8|t/2**32&7),e(this,c).setUint8(s++,t>>24),e(this,c).setUint8(s++,t>>16),e(this,c).setUint8(s++,t>>8),e(this,c).setUint8(s++,t);break;case 6:e(this,c).setUint8(s++,4|t/2**40&3),e(this,c).setUint8(s++,t/2**32|0),e(this,c).setUint8(s++,t>>24),e(this,c).setUint8(s++,t>>16),e(this,c).setUint8(s++,t>>8),e(this,c).setUint8(s++,t);break;default:throw new Error("Bad EBML VINT size "+i)}this.write(e(this,C).subarray(0,s))}writeEBML(t){if(t!==null)if(t instanceof Uint8Array)this.write(t);else if(Array.isArray(t))for(let i of t)this.writeEBML(i);else if(this.offsets.set(t,this.pos),h(this,bt,$t).call(this,t.id),Array.isArray(t.data)){let i=this.pos,s=t.size===-1?1:t.size??4;t.size===-1?h(this,Pt,Se).call(this,255):this.seek(this.pos+s);let r=this.pos;if(this.dataOffsets.set(t,r),this.writeEBML(t.data),t.size!==-1){let n=this.pos-r,f=this.pos;this.seek(i),this.writeEBMLVarInt(n,s),this.seek(f)}}else if(typeof t.data=="number"){let i=t.size??_e(t.data);this.writeEBMLVarInt(i),h(this,bt,$t).call(this,t.data,i)}else typeof t.data=="string"?(this.writeEBMLVarInt(t.data.length),h(this,jt,We).call(this,t.data)):t.data instanceof Uint8Array?(this.writeEBMLVarInt(t.data.byteLength,t.size),this.write(t.data)):t.data instanceof ke?(this.writeEBMLVarInt(4),h(this,Ot,Ce).call(this,t.data.value)):t.data instanceof te&&(this.writeEBMLVarInt(8),h(this,Ht,Me).call(this,t.data.value))}};C=new WeakMap;c=new WeakMap;Pt=new WeakSet;Se=function(t){e(this,c).setUint8(0,t),this.write(e(this,C).subarray(0,1))};Ot=new WeakSet;Ce=function(t){e(this,c).setFloat32(0,t,!1),this.write(e(this,C).subarray(0,4))};Ht=new WeakSet;Me=function(t){e(this,c).setFloat64(0,t,!1),this.write(e(this,C))};bt=new WeakSet;$t=function(t,i=_e(t)){let s=0;switch(i){case 6:e(this,c).setUint8(s++,t/2**40|0);case 5:e(this,c).setUint8(s++,t/2**32|0);case 4:e(this,c).setUint8(s++,t>>24);case 3:e(this,c).setUint8(s++,t>>16);case 2:e(this,c).setUint8(s++,t>>8);case 1:e(this,c).setUint8(s++,t);break;default:throw new Error("Bad UINT size "+i)}this.write(e(this,C).subarray(0,s))};jt=new WeakSet;We=function(t){this.write(new Uint8Array(t.split("").map(i=>i.charCodeAt(0))))};var yt,z,lt,vt,Kt,ai=class extends Ie{constructor(t){super(),a(this,vt),a(this,yt,void 0),a(this,z,new ArrayBuffer(2**16)),a(this,lt,new Uint8Array(e(this,z))),l(this,yt,t)}write(t){h(this,vt,Kt).call(this,this.pos+t.byteLength),e(this,lt).set(t,this.pos),this.pos+=t.byteLength}finalize(){h(this,vt,Kt).call(this,this.pos),e(this,yt).buffer=e(this,z).slice(0,this.pos)}};yt=new WeakMap;z=new WeakMap;lt=new WeakMap;vt=new WeakSet;Kt=function(t){let i=e(this,z).byteLength;for(;i<t;)i*=2;if(i===e(this,z).byteLength)return;let s=new ArrayBuffer(i),r=new Uint8Array(s);r.set(e(this,lt),0),l(this,z,s),l(this,lt,r)};var V,p,g,W,pt=class extends Ie{constructor(t){super(),this.target=t,a(this,V,!1),a(this,p,void 0),a(this,g,void 0),a(this,W,void 0)}write(t){if(!e(this,V))return;let i=this.pos;if(i<e(this,g)){if(i+t.byteLength<=e(this,g))return;t=t.subarray(e(this,g)-i),i=0}let s=i+t.byteLength-e(this,g),r=e(this,p).byteLength;for(;r<s;)r*=2;if(r!==e(this,p).byteLength){let n=new Uint8Array(r);n.set(e(this,p),0),l(this,p,n)}e(this,p).set(t,i-e(this,g)),l(this,W,Math.max(e(this,W),i+t.byteLength))}startTrackingWrites(){l(this,V,!0),l(this,p,new Uint8Array(2**10)),l(this,g,this.pos),l(this,W,this.pos)}getTrackedWrites(){if(!e(this,V))throw new Error("Can't get tracked writes since nothing was tracked.");let i={data:e(this,p).subarray(0,e(this,W)-e(this,g)),start:e(this,g),end:e(this,W)};return l(this,p,void 0),l(this,V,!1),i}};V=new WeakMap;p=new WeakMap;g=new WeakMap;W=new WeakMap;var ni=2**24,hi=2,I,P,st,X,E,m,It,Yt,ie,Ue,se,Ae,rt,Ut,re=class extends pt{constructor(t,i){super(t),a(this,It),a(this,ie),a(this,se),a(this,rt),a(this,I,[]),a(this,P,0),a(this,st,void 0),a(this,X,void 0),a(this,E,void 0),a(this,m,[]),l(this,st,i),l(this,X,t.options?.chunked??!1),l(this,E,t.options?.chunkSize??ni)}write(t){super.write(t),e(this,I).push({data:t.slice(),start:this.pos}),this.pos+=t.byteLength}flush(){if(e(this,I).length===0)return;let t=[],i=[...e(this,I)].sort((s,r)=>s.start-r.start);t.push({start:i[0].start,size:i[0].data.byteLength});for(let s=1;s<i.length;s++){let r=t[t.length-1],n=i[s];n.start<=r.start+r.size?r.size=Math.max(r.size,n.start+n.data.byteLength-r.start):t.push({start:n.start,size:n.data.byteLength})}for(let s of t){s.data=new Uint8Array(s.size);for(let r of e(this,I))s.start<=r.start&&r.start<s.start+s.size&&s.data.set(r.data,r.start-s.start);if(e(this,X))h(this,It,Yt).call(this,s.data,s.start),h(this,rt,Ut).call(this);else{if(e(this,st)&&s.start<e(this,P))throw new Error("Internal error: Monotonicity violation.");this.target.options.onData?.(s.data,s.start),l(this,P,s.start+s.data.byteLength)}}e(this,I).length=0}finalize(){e(this,X)&&h(this,rt,Ut).call(this,!0)}};I=new WeakMap;P=new WeakMap;st=new WeakMap;X=new WeakMap;E=new WeakMap;m=new WeakMap;It=new WeakSet;Yt=function(t,i){let s=e(this,m).findIndex(u=>u.start<=i&&i<u.start+e(this,E));s===-1&&(s=h(this,se,Ae).call(this,i));let r=e(this,m)[s],n=i-r.start,f=t.subarray(0,Math.min(e(this,E)-n,t.byteLength));r.data.set(f,n);let w={start:n,end:n+f.byteLength};if(h(this,ie,Ue).call(this,r,w),r.written[0].start===0&&r.written[0].end===e(this,E)&&(r.shouldFlush=!0),e(this,m).length>hi){for(let u=0;u<e(this,m).length-1;u++)e(this,m)[u].shouldFlush=!0;h(this,rt,Ut).call(this)}f.byteLength<t.byteLength&&h(this,It,Yt).call(this,t.subarray(f.byteLength),i+f.byteLength)};ie=new WeakSet;Ue=function(t,i){let s=0,r=t.written.length-1,n=-1;for(;s<=r;){let f=Math.floor(s+(r-s+1)/2);t.written[f].start<=i.start?(s=f+1,n=f):r=f-1}for(t.written.splice(n+1,0,i),(n===-1||t.written[n].end<i.start)&&n++;n<t.written.length-1&&t.written[n].end>=t.written[n+1].start;)t.written[n].end=Math.max(t.written[n].end,t.written[n+1].end),t.written.splice(n+1,1)};se=new WeakSet;Ae=function(t){let s={start:Math.floor(t/e(this,E))*e(this,E),data:new Uint8Array(e(this,E)),written:[],shouldFlush:!1};return e(this,m).push(s),e(this,m).sort((r,n)=>r.start-n.start),e(this,m).indexOf(s)};rt=new WeakSet;Ut=function(t=!1){for(let i=0;i<e(this,m).length;i++){let s=e(this,m)[i];if(!(!s.shouldFlush&&!t)){for(let r of s.written){if(e(this,st)&&s.start+r.start<e(this,P))throw new Error("Internal error: Monotonicity violation.");this.target.options.onData?.(s.data.subarray(r.start,r.end),s.start+r.start),l(this,P,s.start+r.end)}e(this,m).splice(i--,1)}}};var oi=class extends re{constructor(t,i){super(new ee({onData:(s,r)=>t.stream.write({type:"write",data:s,position:r}),chunked:!0,chunkSize:t.options?.chunkSize}),i)}},q=1,ft=2,At=3,di=1,li=2,fi=17,ci=2**15,at=2**13,ye="https://github.com/Vanilagy/webm-muxer",Be=6,ze=5,ui=["strict","offset","permissive"],d,o,ct,ut,_,G,R,L,Z,M,O,H,y,gt,$,T,S,U,nt,ht,j,K,Bt,wt,ot,qt,Le,Gt,Fe,ae,Ve,ne,Ne,he,Re,oe,xe,de,De,Vt,le,Nt,fe,ce,Pe,A,x,B,D,Zt,Oe,Qt,He,J,kt,tt,_t,ue,$e,b,k,Y,mt,dt,zt,we,je,Lt,me,et,Et,wi=class{constructor(t){a(this,qt),a(this,Gt),a(this,ae),a(this,ne),a(this,he),a(this,oe),a(this,de),a(this,Vt),a(this,Nt),a(this,ce),a(this,A),a(this,B),a(this,Zt),a(this,Qt),a(this,J),a(this,tt),a(this,ue),a(this,b),a(this,Y),a(this,dt),a(this,we),a(this,Lt),a(this,et),a(this,d,void 0),a(this,o,void 0),a(this,ct,void 0),a(this,ut,void 0),a(this,_,void 0),a(this,G,void 0),a(this,R,void 0),a(this,L,void 0),a(this,Z,void 0),a(this,M,void 0),a(this,O,void 0),a(this,H,void 0),a(this,y,void 0),a(this,gt,void 0),a(this,$,0),a(this,T,[]),a(this,S,[]),a(this,U,[]),a(this,nt,void 0),a(this,ht,void 0),a(this,j,-1),a(this,K,-1),a(this,Bt,-1),a(this,wt,void 0),a(this,ot,!1),h(this,qt,Le).call(this,t),l(this,d,{type:"webm",firstTimestampBehavior:"strict",...t}),this.target=t.target;let i=!!e(this,d).streaming;if(t.target instanceof Ee)l(this,o,new ai(t.target));else if(t.target instanceof ee)l(this,o,new re(t.target,i));else if(t.target instanceof Te)l(this,o,new oi(t.target,i));else throw new Error(`Invalid target: ${t.target}`);h(this,Gt,Fe).call(this)}addVideoChunk(t,i,s){if(!(t instanceof EncodedVideoChunk))throw new TypeError("addVideoChunk's first argument (chunk) must be of type EncodedVideoChunk.");if(i&&typeof i!="object")throw new TypeError("addVideoChunk's second argument (meta), when provided, must be an object.");if(s!==void 0&&(!Number.isFinite(s)||s<0))throw new TypeError("addVideoChunk's third argument (timestamp), when provided, must be a non-negative real number.");let r=new Uint8Array(t.byteLength);t.copyTo(r),this.addVideoChunkRaw(r,t.type,s??t.timestamp,i)}addVideoChunkRaw(t,i,s,r){if(!(t instanceof Uint8Array))throw new TypeError("addVideoChunkRaw's first argument (data) must be an instance of Uint8Array.");if(i!=="key"&&i!=="delta")throw new TypeError("addVideoChunkRaw's second argument (type) must be either 'key' or 'delta'.");if(!Number.isFinite(s)||s<0)throw new TypeError("addVideoChunkRaw's third argument (timestamp) must be a non-negative real number.");if(r&&typeof r!="object")throw new TypeError("addVideoChunkRaw's fourth argument (meta), when provided, must be an object.");if(h(this,et,Et).call(this),!e(this,d).video)throw new Error("No video track declared.");e(this,nt)===void 0&&l(this,nt,s),r&&h(this,Zt,Oe).call(this,r);let n=h(this,tt,_t).call(this,t,i,s,q);for(e(this,d).video.codec==="V_VP9"&&h(this,Qt,He).call(this,n),l(this,j,n.timestamp);e(this,S).length>0&&e(this,S)[0].timestamp<=n.timestamp;){let f=e(this,S).shift();h(this,b,k).call(this,f,!1)}!e(this,d).audio||n.timestamp<=e(this,K)?h(this,b,k).call(this,n,!0):e(this,T).push(n),h(this,J,kt).call(this),h(this,A,x).call(this)}addAudioChunk(t,i,s){if(!(t instanceof EncodedAudioChunk))throw new TypeError("addAudioChunk's first argument (chunk) must be of type EncodedAudioChunk.");if(i&&typeof i!="object")throw new TypeError("addAudioChunk's second argument (meta), when provided, must be an object.");if(s!==void 0&&(!Number.isFinite(s)||s<0))throw new TypeError("addAudioChunk's third argument (timestamp), when provided, must be a non-negative real number.");let r=new Uint8Array(t.byteLength);t.copyTo(r),this.addAudioChunkRaw(r,t.type,s??t.timestamp,i)}addAudioChunkRaw(t,i,s,r){if(!(t instanceof Uint8Array))throw new TypeError("addAudioChunkRaw's first argument (data) must be an instance of Uint8Array.");if(i!=="key"&&i!=="delta")throw new TypeError("addAudioChunkRaw's second argument (type) must be either 'key' or 'delta'.");if(!Number.isFinite(s)||s<0)throw new TypeError("addAudioChunkRaw's third argument (timestamp) must be a non-negative real number.");if(r&&typeof r!="object")throw new TypeError("addAudioChunkRaw's fourth argument (meta), when provided, must be an object.");if(h(this,et,Et).call(this),!e(this,d).audio)throw new Error("No audio track declared.");e(this,ht)===void 0&&l(this,ht,s),r?.decoderConfig&&(e(this,d).streaming?l(this,M,h(this,Y,mt).call(this,r.decoderConfig.description)):h(this,dt,zt).call(this,e(this,M),r.decoderConfig.description));let n=h(this,tt,_t).call(this,t,i,s,ft);for(l(this,K,n.timestamp);e(this,T).length>0&&e(this,T)[0].timestamp<=n.timestamp;){let f=e(this,T).shift();h(this,b,k).call(this,f,!0)}!e(this,d).video||n.timestamp<=e(this,j)?h(this,b,k).call(this,n,!e(this,d).video):e(this,S).push(n),h(this,J,kt).call(this),h(this,A,x).call(this)}addSubtitleChunk(t,i,s){if(typeof t!="object"||!t)throw new TypeError("addSubtitleChunk's first argument (chunk) must be an object.");if(!(t.body instanceof Uint8Array))throw new TypeError("body must be an instance of Uint8Array.");if(!Number.isFinite(t.timestamp)||t.timestamp<0)throw new TypeError("timestamp must be a non-negative real number.");if(!Number.isFinite(t.duration)||t.duration<0)throw new TypeError("duration must be a non-negative real number.");if(t.additions&&!(t.additions instanceof Uint8Array))throw new TypeError("additions, when present, must be an instance of Uint8Array.");if(typeof i!="object")throw new TypeError("addSubtitleChunk's second argument (meta) must be an object.");if(h(this,et,Et).call(this),!e(this,d).subtitles)throw new Error("No subtitle track declared.");i?.decoderConfig&&(e(this,d).streaming?l(this,O,h(this,Y,mt).call(this,i.decoderConfig.description)):h(this,dt,zt).call(this,e(this,O),i.decoderConfig.description));let r=h(this,tt,_t).call(this,t.body,"key",s??t.timestamp,At,t.duration,t.additions);l(this,Bt,r.timestamp),e(this,U).push(r),h(this,J,kt).call(this),h(this,A,x).call(this)}finalize(){if(e(this,ot))throw new Error("Cannot finalize a muxer more than once.");for(;e(this,T).length>0;)h(this,b,k).call(this,e(this,T).shift(),!0);for(;e(this,S).length>0;)h(this,b,k).call(this,e(this,S).shift(),!0);for(;e(this,U).length>0&&e(this,U)[0].timestamp<=e(this,$);)h(this,b,k).call(this,e(this,U).shift(),!1);if(e(this,y)&&h(this,Lt,me).call(this),e(this,o).writeEBML(e(this,H)),!e(this,d).streaming){let t=e(this,o).pos,i=e(this,o).pos-e(this,B,D);e(this,o).seek(e(this,o).offsets.get(e(this,ct))+4),e(this,o).writeEBMLVarInt(i,Be),e(this,R).data=new te(e(this,$)),e(this,o).seek(e(this,o).offsets.get(e(this,R))),e(this,o).writeEBML(e(this,R)),e(this,_).data[0].data[1].data=e(this,o).offsets.get(e(this,H))-e(this,B,D),e(this,_).data[1].data[1].data=e(this,o).offsets.get(e(this,ut))-e(this,B,D),e(this,_).data[2].data[1].data=e(this,o).offsets.get(e(this,G))-e(this,B,D),e(this,o).seek(e(this,o).offsets.get(e(this,_))),e(this,o).writeEBML(e(this,_)),e(this,o).seek(t)}h(this,A,x).call(this),e(this,o).finalize(),l(this,ot,!0)}};d=new WeakMap;o=new WeakMap;ct=new WeakMap;ut=new WeakMap;_=new WeakMap;G=new WeakMap;R=new WeakMap;L=new WeakMap;Z=new WeakMap;M=new WeakMap;O=new WeakMap;H=new WeakMap;y=new WeakMap;gt=new WeakMap;$=new WeakMap;T=new WeakMap;S=new WeakMap;U=new WeakMap;nt=new WeakMap;ht=new WeakMap;j=new WeakMap;K=new WeakMap;Bt=new WeakMap;wt=new WeakMap;ot=new WeakMap;qt=new WeakSet;Le=function(t){if(typeof t!="object")throw new TypeError("The muxer requires an options object to be passed to its constructor.");if(!(t.target instanceof Ft))throw new TypeError("The target must be provided and an instance of Target.");if(t.video){if(typeof t.video.codec!="string")throw new TypeError(`Invalid video codec: ${t.video.codec}. Must be a string.`);if(!Number.isInteger(t.video.width)||t.video.width<=0)throw new TypeError(`Invalid video width: ${t.video.width}. Must be a positive integer.`);if(!Number.isInteger(t.video.height)||t.video.height<=0)throw new TypeError(`Invalid video height: ${t.video.height}. Must be a positive integer.`);if(t.video.frameRate!==void 0&&(!Number.isFinite(t.video.frameRate)||t.video.frameRate<=0))throw new TypeError(`Invalid video frame rate: ${t.video.frameRate}. Must be a positive number.`);if(t.video.alpha!==void 0&&typeof t.video.alpha!="boolean")throw new TypeError(`Invalid video alpha: ${t.video.alpha}. Must be a boolean.`)}if(t.audio){if(typeof t.audio.codec!="string")throw new TypeError(`Invalid audio codec: ${t.audio.codec}. Must be a string.`);if(!Number.isInteger(t.audio.numberOfChannels)||t.audio.numberOfChannels<=0)throw new TypeError(`Invalid number of audio channels: ${t.audio.numberOfChannels}. Must be a positive integer.`);if(!Number.isInteger(t.audio.sampleRate)||t.audio.sampleRate<=0)throw new TypeError(`Invalid audio sample rate: ${t.audio.sampleRate}. Must be a positive integer.`);if(t.audio.bitDepth!==void 0&&(!Number.isInteger(t.audio.bitDepth)||t.audio.bitDepth<=0))throw new TypeError(`Invalid audio bit depth: ${t.audio.bitDepth}. Must be a positive integer.`)}if(t.subtitles&&typeof t.subtitles.codec!="string")throw new TypeError(`Invalid subtitles codec: ${t.subtitles.codec}. Must be a string.`);if(t.type!==void 0&&!["webm","matroska"].includes(t.type))throw new TypeError(`Invalid type: ${t.type}. Must be 'webm' or 'matroska'.`);if(t.firstTimestampBehavior&&!ui.includes(t.firstTimestampBehavior))throw new TypeError(`Invalid first timestamp behavior: ${t.firstTimestampBehavior}`);if(t.streaming!==void 0&&typeof t.streaming!="boolean")throw new TypeError(`Invalid streaming option: ${t.streaming}. Must be a boolean.`)};Gt=new WeakSet;Fe=function(){e(this,o)instanceof pt&&e(this,o).target.options.onHeader&&e(this,o).startTrackingWrites(),h(this,ae,Ve).call(this),e(this,d).streaming||h(this,oe,xe).call(this),h(this,de,De).call(this),h(this,ne,Ne).call(this),h(this,he,Re).call(this),e(this,d).streaming||(h(this,Vt,le).call(this),h(this,Nt,fe).call(this)),h(this,ce,Pe).call(this),h(this,A,x).call(this)};ae=new WeakSet;Ve=function(){let t={id:440786851,data:[{id:17030,data:1},{id:17143,data:1},{id:17138,data:4},{id:17139,data:8},{id:17026,data:e(this,d).type??"webm"},{id:17031,data:2},{id:17029,data:2}]};e(this,o).writeEBML(t)};ne=new WeakSet;Ne=function(){l(this,Z,{id:236,size:4,data:new Uint8Array(at)}),l(this,M,{id:236,size:4,data:new Uint8Array(at)}),l(this,O,{id:236,size:4,data:new Uint8Array(at)})};he=new WeakSet;Re=function(){l(this,L,{id:21936,data:[{id:21937,data:2},{id:21946,data:2},{id:21947,data:2},{id:21945,data:0}]})};oe=new WeakSet;xe=function(){const t=new Uint8Array([28,83,187,107]),i=new Uint8Array([21,73,169,102]),s=new Uint8Array([22,84,174,107]);l(this,_,{id:290298740,data:[{id:19899,data:[{id:21419,data:t},{id:21420,size:5,data:0}]},{id:19899,data:[{id:21419,data:i},{id:21420,size:5,data:0}]},{id:19899,data:[{id:21419,data:s},{id:21420,size:5,data:0}]}]})};de=new WeakSet;De=function(){let t={id:17545,data:new te(0)};l(this,R,t);let i={id:357149030,data:[{id:2807729,data:1e6},{id:19840,data:ye},{id:22337,data:ye},e(this,d).streaming?null:t]};l(this,ut,i)};Vt=new WeakSet;le=function(){let t={id:374648427,data:[]};l(this,G,t),e(this,d).video&&t.data.push({id:174,data:[{id:215,data:q},{id:29637,data:q},{id:131,data:di},{id:134,data:e(this,d).video.codec},e(this,Z),e(this,d).video.frameRate?{id:2352003,data:1e9/e(this,d).video.frameRate}:null,{id:224,data:[{id:176,data:e(this,d).video.width},{id:186,data:e(this,d).video.height},e(this,d).video.alpha?{id:21440,data:1}:null,e(this,L)]}]}),e(this,d).audio&&(l(this,M,e(this,d).streaming?e(this,M)||null:{id:236,size:4,data:new Uint8Array(at)}),t.data.push({id:174,data:[{id:215,data:ft},{id:29637,data:ft},{id:131,data:li},{id:134,data:e(this,d).audio.codec},e(this,M),{id:225,data:[{id:181,data:new ke(e(this,d).audio.sampleRate)},{id:159,data:e(this,d).audio.numberOfChannels},e(this,d).audio.bitDepth?{id:25188,data:e(this,d).audio.bitDepth}:null]}]})),e(this,d).subtitles&&t.data.push({id:174,data:[{id:215,data:At},{id:29637,data:At},{id:131,data:fi},{id:134,data:e(this,d).subtitles.codec},e(this,O)]})};Nt=new WeakSet;fe=function(){let t={id:408125543,size:e(this,d).streaming?-1:Be,data:[e(this,d).streaming?null:e(this,_),e(this,ut),e(this,G)]};if(l(this,ct,t),e(this,o).writeEBML(t),e(this,o)instanceof pt&&e(this,o).target.options.onHeader){let{data:i,start:s}=e(this,o).getTrackedWrites();e(this,o).target.options.onHeader(i,s)}};ce=new WeakSet;Pe=function(){l(this,H,{id:475249515,data:[]})};A=new WeakSet;x=function(){e(this,o)instanceof re&&e(this,o).flush()};B=new WeakSet;D=function(){return e(this,o).dataOffsets.get(e(this,ct))};Zt=new WeakSet;Oe=function(t){if(t.decoderConfig){if(t.decoderConfig.colorSpace){let i=t.decoderConfig.colorSpace;if(l(this,wt,i),e(this,L).data=[{id:21937,data:{rgb:1,bt709:1,bt470bg:5,smpte170m:6}[i.matrix]},{id:21946,data:{bt709:1,smpte170m:6,"iec61966-2-1":13}[i.transfer]},{id:21947,data:{bt709:1,bt470bg:5,smpte170m:6}[i.primaries]},{id:21945,data:[1,2][Number(i.fullRange)]}],!e(this,d).streaming){let s=e(this,o).pos;e(this,o).seek(e(this,o).offsets.get(e(this,L))),e(this,o).writeEBML(e(this,L)),e(this,o).seek(s)}}t.decoderConfig.description&&(e(this,d).streaming?l(this,Z,h(this,Y,mt).call(this,t.decoderConfig.description)):h(this,dt,zt).call(this,e(this,Z),t.decoderConfig.description))}};Qt=new WeakSet;He=function(t){if(t.type!=="key"||!e(this,wt))return;let i=0;if(F(t.data,0,2)!==2)return;i+=2;let s=(F(t.data,i+1,i+2)<<1)+F(t.data,i+0,i+1);i+=2,s===3&&i++;let r=F(t.data,i+0,i+1);if(i++,r)return;let n=F(t.data,i+0,i+1);if(i++,n!==0)return;i+=2;let f=F(t.data,i+0,i+24);if(i+=24,f!==4817730)return;s>=2&&i++;let w={rgb:7,bt709:2,bt470bg:1,smpte170m:3}[e(this,wt).matrix];ri(t.data,i+0,i+3,w)};J=new WeakSet;kt=function(){let t=Math.min(e(this,d).video?e(this,j):1/0,e(this,d).audio?e(this,K):1/0),i=e(this,U);for(;i.length>0&&i[0].timestamp<=t;)h(this,b,k).call(this,i.shift(),!e(this,d).video&&!e(this,d).audio)};tt=new WeakSet;_t=function(t,i,s,r,n,f){let w=h(this,ue,$e).call(this,s,r);return{data:t,additions:f,type:i,timestamp:w,duration:n,trackNumber:r}};ue=new WeakSet;$e=function(t,i){let s=i===q?e(this,j):i===ft?e(this,K):e(this,Bt);if(i!==At){let r=i===q?e(this,nt):e(this,ht);if(e(this,d).firstTimestampBehavior==="strict"&&s===-1&&t!==0)throw new Error(`The first chunk for your media track must have a timestamp of 0 (received ${t}). Non-zero first timestamps are often caused by directly piping frames or audio data from a MediaStreamTrack into the encoder. Their timestamps are typically relative to the age of the document, which is probably what you want.
+
+If you want to offset all timestamps of a track such that the first one is zero, set firstTimestampBehavior: 'offset' in the options.
+If you want to allow non-zero first timestamps, set firstTimestampBehavior: 'permissive'.
+`);e(this,d).firstTimestampBehavior==="offset"&&(t-=r)}if(t<s)throw new Error(`Timestamps must be monotonically increasing (went from ${s} to ${t}).`);if(t<0)throw new Error(`Timestamps must be non-negative (received ${t}).`);return t};b=new WeakSet;k=function(t,i){e(this,d).streaming&&!e(this,G)&&(h(this,Vt,le).call(this),h(this,Nt,fe).call(this));let s=Math.floor(t.timestamp/1e3),r=s-e(this,gt),n=i&&t.type==="key"&&r>=1e3,f=r>=ci;if((!e(this,y)||n||f)&&(h(this,we,je).call(this,s),r=0),r<0)return;let w=new Uint8Array(4),u=new DataView(w.buffer);if(u.setUint8(0,128|t.trackNumber),u.setInt16(1,r,!1),t.duration===void 0&&!t.additions){u.setUint8(3,+(t.type==="key")<<7);let v={id:163,data:[w,t.data]};e(this,o).writeEBML(v)}else{let v=Math.floor(t.duration/1e3),pe={id:160,data:[{id:161,data:[w,t.data]},t.duration!==void 0?{id:155,data:v}:null,t.additions?{id:30113,data:t.additions}:null]};e(this,o).writeEBML(pe)}l(this,$,Math.max(e(this,$),s))};Y=new WeakSet;mt=function(t){return{id:25506,size:4,data:new Uint8Array(t)}};dt=new WeakSet;zt=function(t,i){let s=e(this,o).pos;e(this,o).seek(e(this,o).offsets.get(t));let r=6+i.byteLength,n=at-r;if(n<0){let f=i.byteLength+n;i instanceof ArrayBuffer?i=i.slice(0,f):i=i.buffer.slice(0,f),n=0}t=[h(this,Y,mt).call(this,i),{id:236,size:4,data:new Uint8Array(n)}],e(this,o).writeEBML(t),e(this,o).seek(s)};we=new WeakSet;je=function(t){e(this,y)&&h(this,Lt,me).call(this),e(this,o)instanceof pt&&e(this,o).target.options.onCluster&&e(this,o).startTrackingWrites(),l(this,y,{id:524531317,size:e(this,d).streaming?-1:ze,data:[{id:231,data:t}]}),e(this,o).writeEBML(e(this,y)),l(this,gt,t);let i=e(this,o).offsets.get(e(this,y))-e(this,B,D);e(this,H).data.push({id:187,data:[{id:179,data:t},e(this,d).video?{id:183,data:[{id:247,data:q},{id:241,data:i}]}:null,e(this,d).audio?{id:183,data:[{id:247,data:ft},{id:241,data:i}]}:null]})};Lt=new WeakSet;me=function(){if(!e(this,d).streaming){let t=e(this,o).pos-e(this,o).dataOffsets.get(e(this,y)),i=e(this,o).pos;e(this,o).seek(e(this,o).offsets.get(e(this,y))+4),e(this,o).writeEBMLVarInt(t,ze),e(this,o).seek(i)}if(e(this,o)instanceof pt&&e(this,o).target.options.onCluster){let{data:t,start:i}=e(this,o).getTrackedWrites();e(this,o).target.options.onCluster(t,i,e(this,gt))}};et=new WeakSet;Et=function(){if(e(this,ot))throw new Error("Cannot add new video or audio chunks after the file has been finalized.")};var Q=/(?:(.+?)\n)?((?:\d{2}:)?\d{2}:\d{2}.\d{3})\s+-->\s+((?:\d{2}:)?\d{2}:\d{2}.\d{3})/g,mi=/^WEBVTT.*?\n{2}/,pi=/(?:(\d{2}):)?(\d{2}):(\d{2}).(\d{3})/,ve=/<(?:(\d{2}):)?(\d{2}):(\d{2}).(\d{3})>/g,Dt=new TextEncoder,N,Tt,St,Ct,Mt,it,Wt,Xt,Ke,gi=class{constructor(t){a(this,it),a(this,Xt),a(this,N,void 0),a(this,Tt,void 0),a(this,St,!1),a(this,Ct,void 0),a(this,Mt,!1),l(this,N,t)}configure(t){if(t.codec!=="webvtt")throw new Error("Codec must be 'webvtt'.");l(this,Tt,t)}encode(t){if(!e(this,Tt))throw new Error("Encoder not configured.");t=t.replace(`\r
+`,`
+`).replace("\r",`
+`),Q.lastIndex=0;let i;if(!e(this,St)){if(!mi.test(t)){let r=new Error("WebVTT preamble incorrect.");throw e(this,N).error(r),r}i=Q.exec(t);let s=t.slice(0,i?.index??t.length).trimEnd();if(!s){let r=new Error("No WebVTT preamble provided.");throw e(this,N).error(r),r}l(this,Ct,Dt.encode(s)),l(this,St,!0),i&&(t=t.slice(i.index),Q.lastIndex=0)}for(;i=Q.exec(t);){let s=t.slice(0,i.index),r=i[1]||"",n=i.index+i[0].length,f=t.indexOf(`
+`,n)+1,w=t.slice(n,f).trim(),u=t.indexOf(`
+
+`,n);u===-1&&(u=t.length);let v=h(this,it,Wt).call(this,i[2]),Ye=h(this,it,Wt).call(this,i[3])-v,Rt=t.slice(f,u),ge=`${w}
+${r}
+${s}`;ve.lastIndex=0,Rt=Rt.replace(ve,Ge=>{let Ze=h(this,it,Wt).call(this,Ge.slice(1,-1))-v;return`<${h(this,Xt,Ke).call(this,Ze)}>`}),t=t.slice(u).trimStart(),Q.lastIndex=0;let qe={body:Dt.encode(Rt),additions:ge.trim()===""?void 0:Dt.encode(ge),timestamp:v*1e3,duration:Ye*1e3},be={};e(this,Mt)||(be.decoderConfig={description:e(this,Ct)},l(this,Mt,!0)),e(this,N).output(qe,be)}}};N=new WeakMap;Tt=new WeakMap;St=new WeakMap;Ct=new WeakMap;Mt=new WeakMap;it=new WeakSet;Wt=function(t){let i=pi.exec(t);if(!i)throw new Error("Expected match.");return 3600*1e3*Number(i[1]||"0")+60*1e3*Number(i[2])+1e3*Number(i[3])+Number(i[4])};Xt=new WeakSet;Ke=function(t){let i=Math.floor(t/36e5),s=Math.floor(t%(3600*1e3)/(60*1e3)),r=Math.floor(t%(60*1e3)/1e3),n=t%1e3;return i.toString().padStart(2,"0")+":"+s.toString().padStart(2,"0")+":"+r.toString().padStart(2,"0")+"."+n.toString().padStart(3,"0")};return ii(bi);})();
+</script>
+<script>
+/* Inlined build of mp4-muxer v5.2.2 (MIT, https://github.com/Vanilagy/mp4-muxer),
+   minified. Pairs with WebCodecs' H.264 VideoEncoder for the MP4 export —
+   exposes window.Mp4Muxer. */
+"use strict";var Mp4Muxer=(()=>{var we=Object.defineProperty,at=Object.getOwnPropertyDescriptor,nt=Object.getOwnPropertyNames,ot=Object.prototype.hasOwnProperty,ht=(e,t)=>{for(var s in t)we(e,s,{get:t[s],enumerable:!0})},lt=(e,t,s,r)=>{if(t&&typeof t=="object"||typeof t=="function")for(let a of nt(t))!ot.call(e,a)&&a!==s&&we(e,a,{get:()=>t[a],enumerable:!(r=at(t,a))||r.enumerable});return e},ft=e=>lt(we({},"__esModule",{value:!0}),e),ve=(e,t,s)=>{if(!t.has(e))throw TypeError("Cannot "+s)},i=(e,t,s)=>(ve(e,t,"read from private field"),s?s.call(e):t.get(e)),d=(e,t,s)=>{if(t.has(e))throw TypeError("Cannot add the same private member more than once");t instanceof WeakSet?t.add(e):t.set(e,s)},C=(e,t,s,r)=>(ve(e,t,"write to private field"),r?r.call(e,s):t.set(e,s),s),ut=(e,t,s,r)=>({set _(a){C(e,t,a,s)},get _(){return i(e,t,r)}}),m=(e,t,s)=>(ve(e,t,"access private method"),s),Re={};ht(Re,{ArrayBufferTarget:()=>qe,FileSystemWritableFileStreamTarget:()=>Xe,Muxer:()=>vi,StreamTarget:()=>Te});var p=new Uint8Array(8),z=new DataView(p.buffer),y=e=>[(e%256+256)%256],c=e=>(z.setUint16(0,e,!1),[p[0],p[1]]),dt=e=>(z.setInt16(0,e,!1),[p[0],p[1]]),Pe=e=>(z.setUint32(0,e,!1),[p[1],p[2],p[3]]),n=e=>(z.setUint32(0,e,!1),[p[0],p[1],p[2],p[3]]),mt=e=>(z.setInt32(0,e,!1),[p[0],p[1],p[2],p[3]]),x=e=>(z.setUint32(0,Math.floor(e/2**32),!1),z.setUint32(4,e,!1),[p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7]]),ge=e=>(z.setInt16(0,2**8*e,!1),[p[0],p[1]]),A=e=>(z.setInt32(0,2**16*e,!1),[p[0],p[1],p[2],p[3]]),ye=e=>(z.setInt32(0,2**30*e,!1),[p[0],p[1],p[2],p[3]]),E=(e,t=!1)=>{let s=Array(e.length).fill(null).map((r,a)=>e.charCodeAt(a));return t&&s.push(0),s},se=e=>e&&e[e.length-1],Ce=e=>{let t;for(let s of e)(!t||s.presentationTimestamp>t.presentationTimestamp)&&(t=s);return t},O=(e,t,s=!0)=>{let r=e*t;return s?Math.round(r):r},Le=e=>{let t=e*(Math.PI/180),s=Math.cos(t),r=Math.sin(t);return[s,r,0,-r,s,0,0,0,1]},Ve=Le(0),je=e=>[A(e[0]),A(e[1]),ye(e[2]),A(e[3]),A(e[4]),ye(e[5]),A(e[6]),A(e[7]),ye(e[8])],X=e=>!e||typeof e!="object"?e:Array.isArray(e)?e.map(X):Object.fromEntries(Object.entries(e).map(([t,s])=>[t,X(s)])),V=e=>e>=0&&e<2**32,v=(e,t,s)=>({type:e,contents:t&&new Uint8Array(t.flat(10)),children:s}),w=(e,t,s,r,a)=>v(e,[y(t),Pe(s),r??[]],a),pt=e=>{let t=512;return e.fragmented?v("ftyp",[E("iso5"),n(t),E("iso5"),E("iso6"),E("mp41")]):v("ftyp",[E("isom"),n(t),E("isom"),e.holdsAvc?E("avc1"):[],E("mp41")])},Se=e=>({type:"mdat",largeSize:e}),ct=e=>({type:"free",size:e}),re=(e,t,s=!1)=>v("moov",null,[wt(t,e),...e.map(r=>vt(r,t)),s?Gt(e):null]),wt=(e,t)=>{let s=O(Math.max(0,...t.filter(l=>l.samples.length>0).map(l=>{const u=Ce(l.samples);return u.presentationTimestamp+u.duration})),Ae),r=Math.max(...t.map(l=>l.id))+1,a=!V(e)||!V(s),o=a?x:n;return w("mvhd",+a,0,[o(e),o(e),n(Ae),o(s),A(1),ge(1),Array(10).fill(0),je(Ve),Array(24).fill(0),n(r)])},vt=(e,t)=>v("trak",null,[gt(e,t),yt(e,t)]),gt=(e,t)=>{let s=Ce(e.samples),r=O(s?s.presentationTimestamp+s.duration:0,Ae),a=!V(t)||!V(r),o=a?x:n,l;return e.info.type==="video"?l=typeof e.info.rotation=="number"?Le(e.info.rotation):e.info.rotation:l=Ve,w("tkhd",+a,3,[o(t),o(t),n(e.id),n(0),o(r),Array(8).fill(0),c(0),c(0),ge(e.info.type==="audio"?1:0),c(0),je(l),A(e.info.type==="video"?e.info.width:0),A(e.info.type==="video"?e.info.height:0)])},yt=(e,t)=>v("mdia",null,[Ct(e,t),St(e.info.type==="video"?"vide":"soun"),Tt(e)]),Ct=(e,t)=>{let s=Ce(e.samples),r=O(s?s.presentationTimestamp+s.duration:0,e.timescale),a=!V(t)||!V(r),o=a?x:n;return w("mdhd",+a,0,[o(t),o(t),n(e.timescale),o(r),c(21956),c(0)])},St=e=>w("hdlr",0,0,[E("mhlr"),E(e),n(0),n(0),n(0),E("mp4-muxer-hdlr",!0)]),Tt=e=>v("minf",null,[e.info.type==="video"?bt():_t(),kt(),At(e)]),bt=()=>w("vmhd",0,1,[c(0),c(0),c(0),c(0)]),_t=()=>w("smhd",0,0,[c(0),c(0)]),kt=()=>v("dinf",null,[Et()]),Et=()=>w("dref",0,0,[n(1)],[zt()]),zt=()=>w("url ",0,1),At=e=>{const t=e.compositionTimeOffsetTable.length>1||e.compositionTimeOffsetTable.some(s=>s.sampleCompositionTimeOffset!==0);return v("stbl",null,[Ot(e),Vt(e),jt(e),$t(e),Ht(e),qt(e),t?Xt(e):null])},Ot=e=>w("stsd",0,0,[n(1)],[e.info.type==="video"?Mt(ri[e.info.codec],e):Rt(ni[e.info.codec],e)]),Mt=(e,t)=>v(e,[Array(6).fill(0),c(1),c(0),c(0),Array(12).fill(0),c(t.info.width),c(t.info.height),n(4718592),n(4718592),n(0),c(1),Array(32).fill(0),c(24),dt(65535)],[ai[t.info.codec](t),t.info.decoderConfig.colorSpace?Ut(t):null]),Bt={bt709:1,bt470bg:5,smpte170m:6},It={bt709:1,smpte170m:6,"iec61966-2-1":13},Dt={rgb:0,bt709:1,bt470bg:5,smpte170m:6},Ut=e=>v("colr",[E("nclx"),c(Bt[e.info.decoderConfig.colorSpace.primaries]),c(It[e.info.decoderConfig.colorSpace.transfer]),c(Dt[e.info.decoderConfig.colorSpace.matrix]),y((e.info.decoderConfig.colorSpace.fullRange?1:0)<<7)]),xt=e=>e.info.decoderConfig&&v("avcC",[...new Uint8Array(e.info.decoderConfig.description)]),Wt=e=>e.info.decoderConfig&&v("hvcC",[...new Uint8Array(e.info.decoderConfig.description)]),Ft=e=>{if(!e.info.decoderConfig)return null;let t=e.info.decoderConfig;if(!t.colorSpace)throw new Error("'colorSpace' is required in the decoder config for VP9.");let s=t.codec.split("."),r=Number(s[1]),a=Number(s[2]),u=(Number(s[3])<<4)+(0<<1)+Number(t.colorSpace.fullRange);return w("vpcC",1,0,[y(r),y(a),y(u),y(2),y(2),y(2),c(0)])},Nt=()=>{let s=(1<<7)+1;return v("av1C",[s,0,0,0])},Rt=(e,t)=>v(e,[Array(6).fill(0),c(1),c(0),c(0),n(0),c(t.info.numberOfChannels),c(16),c(0),c(0),A(t.info.sampleRate)],[oi[t.info.codec](t)]),Pt=e=>{let t=new Uint8Array(e.info.decoderConfig.description);return w("esds",0,0,[n(58753152),y(32+t.byteLength),c(1),y(0),n(75530368),y(18+t.byteLength),y(64),y(21),Pe(0),n(130071),n(130071),n(92307584),y(t.byteLength),...t,n(109084800),y(1),y(2)])},Lt=e=>{let t=3840,s=0;const r=e.info.decoderConfig?.description;if(r){if(r.byteLength<18)throw new TypeError("Invalid decoder description provided for Opus; must be at least 18 bytes long.");const a=ArrayBuffer.isView(r)?new DataView(r.buffer,r.byteOffset,r.byteLength):new DataView(r);t=a.getUint16(10,!0),s=a.getInt16(14,!0)}return v("dOps",[y(0),y(e.info.numberOfChannels),c(t),n(e.info.sampleRate),ge(s),y(0)])},Vt=e=>w("stts",0,0,[n(e.timeToSampleTable.length),e.timeToSampleTable.map(t=>[n(t.sampleCount),n(t.sampleDelta)])]),jt=e=>{if(e.samples.every(s=>s.type==="key"))return null;let t=[...e.samples.entries()].filter(([,s])=>s.type==="key");return w("stss",0,0,[n(t.length),t.map(([s])=>n(s+1))])},$t=e=>w("stsc",0,0,[n(e.compactlyCodedChunkTable.length),e.compactlyCodedChunkTable.map(t=>[n(t.firstChunk),n(t.samplesPerChunk),n(1)])]),Ht=e=>w("stsz",0,0,[n(0),n(e.samples.length),e.samples.map(t=>n(t.size))]),qt=e=>e.finalizedChunks.length>0&&se(e.finalizedChunks).offset>=2**32?w("co64",0,0,[n(e.finalizedChunks.length),e.finalizedChunks.map(t=>x(t.offset))]):w("stco",0,0,[n(e.finalizedChunks.length),e.finalizedChunks.map(t=>n(t.offset))]),Xt=e=>w("ctts",0,0,[n(e.compositionTimeOffsetTable.length),e.compositionTimeOffsetTable.map(t=>[n(t.sampleCount),n(t.sampleCompositionTimeOffset)])]),Gt=e=>v("mvex",null,e.map(Zt)),Zt=e=>w("trex",0,0,[n(e.id),n(1),n(0),n(0),n(0)]),$e=(e,t)=>v("moof",null,[Kt(e),...t.map(Qt)]),Kt=e=>w("mfhd",0,0,[n(e)]),He=e=>{let t=0,s=0,r=0,a=0,o=e.type==="delta";return s|=+o,o?t|=1:t|=2,t<<24|s<<16|r<<8|a},Qt=e=>v("traf",null,[Jt(e),Yt(e),ei(e)]),Jt=e=>{let t=0;t|=8,t|=16,t|=32,t|=131072;let s=e.currentChunk.samples[1]??e.currentChunk.samples[0],r={duration:s.timescaleUnitsToNextSample,size:s.size,flags:He(s)};return w("tfhd",0,t,[n(e.id),n(r.duration),n(r.size),n(r.flags)])},Yt=e=>w("tfdt",1,0,[x(O(e.currentChunk.startTimestamp,e.timescale))]),ei=e=>{let t=e.currentChunk.samples.map(D=>D.timescaleUnitsToNextSample),s=e.currentChunk.samples.map(D=>D.size),r=e.currentChunk.samples.map(He),a=e.currentChunk.samples.map(D=>O(D.presentationTimestamp-D.decodeTimestamp,e.timescale)),o=new Set(t),l=new Set(s),u=new Set(r),g=new Set(a),b=u.size===2&&r[0]!==r[1],U=o.size>1,ie=l.size>1,st=!b&&u.size>1,rt=g.size>1||[...g].some(D=>D!==0),L=0;return L|=1,L|=4*+b,L|=256*+U,L|=512*+ie,L|=1024*+st,L|=2048*+rt,w("trun",1,L,[n(e.currentChunk.samples.length),n(e.currentChunk.offset-e.currentChunk.moofOffset||0),b?n(r[0]):[],e.currentChunk.samples.map((D,ce)=>[U?n(t[ce]):[],ie?n(s[ce]):[],st?n(r[ce]):[],rt?mt(a[ce]):[]])])},ti=e=>v("mfra",null,[...e.map(ii),si()]),ii=(e,t)=>w("tfra",1,0,[n(e.id),n(63),n(e.finalizedChunks.length),e.finalizedChunks.map(r=>[x(O(r.startTimestamp,e.timescale)),x(r.moofOffset),n(t+1),n(1),n(1)])]),si=()=>w("mfro",0,0,[n(0)]),ri={avc:"avc1",hevc:"hvc1",vp9:"vp09",av1:"av01"},ai={avc:xt,hevc:Wt,vp9:Ft,av1:Nt},ni={aac:"mp4a",opus:"Opus"},oi={aac:Pt,opus:Lt},hi=Symbol("isTarget"),ae=class{},qe=class extends ae{constructor(){super(...arguments),this.buffer=null}},Te=class extends ae{constructor(e){if(super(),this.options=e,typeof e!="object")throw new TypeError("StreamTarget requires an options object to be passed to its constructor.");if(e.onData){if(typeof e.onData!="function")throw new TypeError("options.onData, when provided, must be a function.");if(e.onData.length<2)throw new TypeError("options.onData, when provided, must be a function that takes in at least two arguments (data and position). Ignoring the position argument, which specifies the byte offset at which the data is to be written, can lead to broken outputs.")}if(e.chunked!==void 0&&typeof e.chunked!="boolean")throw new TypeError("options.chunked, when provided, must be a boolean.");if(e.chunkSize!==void 0&&(!Number.isInteger(e.chunkSize)||e.chunkSize<1024))throw new TypeError("options.chunkSize, when provided, must be an integer and not smaller than 1024.")}},Xe=class extends ae{constructor(e,t){if(super(),this.stream=e,this.options=t,!(e instanceof FileSystemWritableFileStream))throw new TypeError("FileSystemWritableFileStreamTarget requires a FileSystemWritableFileStream instance.");if(t!==void 0&&typeof t!="object")throw new TypeError("FileSystemWritableFileStreamTarget's options, when provided, must be an object.");if(t&&t.chunkSize!==void 0&&(!Number.isInteger(t.chunkSize)||t.chunkSize<=0))throw new TypeError("options.chunkSize, when provided, must be a positive integer")}},W,j,Ge=class{constructor(){this.pos=0,d(this,W,new Uint8Array(8)),d(this,j,new DataView(i(this,W).buffer)),this.offsets=new WeakMap}seek(e){this.pos=e}writeU32(e){i(this,j).setUint32(0,e,!1),this.write(i(this,W).subarray(0,4))}writeU64(e){i(this,j).setUint32(0,Math.floor(e/2**32),!1),i(this,j).setUint32(4,e,!1),this.write(i(this,W).subarray(0,8))}writeAscii(e){for(let t=0;t<e.length;t++)i(this,j).setUint8(t%8,e.charCodeAt(t)),t%8===7&&this.write(i(this,W));e.length%8!==0&&this.write(i(this,W).subarray(0,e.length%8))}writeBox(e){if(this.offsets.set(e,this.pos),e.contents&&!e.children)this.writeBoxHeader(e,e.size??e.contents.byteLength+8),this.write(e.contents);else{let t=this.pos;if(this.writeBoxHeader(e,0),e.contents&&this.write(e.contents),e.children)for(let a of e.children)a&&this.writeBox(a);let s=this.pos,r=e.size??s-t;this.seek(t),this.writeBoxHeader(e,r),this.seek(s)}}writeBoxHeader(e,t){this.writeU32(e.largeSize?1:t),this.writeAscii(e.type),e.largeSize&&this.writeU64(t)}measureBoxHeader(e){return 8+(e.largeSize?8:0)}patchBox(e){let t=this.pos;this.seek(this.offsets.get(e)),this.writeBox(e),this.seek(t)}measureBox(e){if(e.contents&&!e.children)return this.measureBoxHeader(e)+e.contents.byteLength;{let t=this.measureBoxHeader(e);if(e.contents&&(t+=e.contents.byteLength),e.children)for(let s of e.children)s&&(t+=this.measureBox(s));return t}}};W=new WeakMap,j=new WeakMap;var ne,F,G,Z,oe,be,li=class extends Ge{constructor(e){super(),d(this,oe),d(this,ne,void 0),d(this,F,new ArrayBuffer(2**16)),d(this,G,new Uint8Array(i(this,F))),d(this,Z,0),C(this,ne,e)}write(e){m(this,oe,be).call(this,this.pos+e.byteLength),i(this,G).set(e,this.pos),this.pos+=e.byteLength,C(this,Z,Math.max(i(this,Z),this.pos))}finalize(){m(this,oe,be).call(this,this.pos),i(this,ne).buffer=i(this,F).slice(0,Math.max(i(this,Z),this.pos))}};ne=new WeakMap,F=new WeakMap,G=new WeakMap,Z=new WeakMap,oe=new WeakSet,be=function(e){let t=i(this,F).byteLength;for(;t<e;)t*=2;if(t===i(this,F).byteLength)return;let s=new ArrayBuffer(t),r=new Uint8Array(s);r.set(i(this,G),0),C(this,F,s),C(this,G,r)};var fi=2**24,ui=2,K,N,Q,B,_,he,_e,ke,Ze,Ee,Ke,J,le,ze=class extends Ge{constructor(e){super(),d(this,he),d(this,ke),d(this,Ee),d(this,J),d(this,K,void 0),d(this,N,[]),d(this,Q,void 0),d(this,B,void 0),d(this,_,[]),C(this,K,e),C(this,Q,e.options?.chunked??!1),C(this,B,e.options?.chunkSize??fi)}write(e){i(this,N).push({data:e.slice(),start:this.pos}),this.pos+=e.byteLength}flush(){if(i(this,N).length===0)return;let e=[],t=[...i(this,N)].sort((s,r)=>s.start-r.start);e.push({start:t[0].start,size:t[0].data.byteLength});for(let s=1;s<t.length;s++){let r=e[e.length-1],a=t[s];a.start<=r.start+r.size?r.size=Math.max(r.size,a.start+a.data.byteLength-r.start):e.push({start:a.start,size:a.data.byteLength})}for(let s of e){s.data=new Uint8Array(s.size);for(let r of i(this,N))s.start<=r.start&&r.start<s.start+s.size&&s.data.set(r.data,r.start-s.start);i(this,Q)?(m(this,he,_e).call(this,s.data,s.start),m(this,J,le).call(this)):i(this,K).options.onData?.(s.data,s.start)}i(this,N).length=0}finalize(){i(this,Q)&&m(this,J,le).call(this,!0)}};K=new WeakMap,N=new WeakMap,Q=new WeakMap,B=new WeakMap,_=new WeakMap,he=new WeakSet,_e=function(e,t){let s=i(this,_).findIndex(u=>u.start<=t&&t<u.start+i(this,B));s===-1&&(s=m(this,Ee,Ke).call(this,t));let r=i(this,_)[s],a=t-r.start,o=e.subarray(0,Math.min(i(this,B)-a,e.byteLength));r.data.set(o,a);let l={start:a,end:a+o.byteLength};if(m(this,ke,Ze).call(this,r,l),r.written[0].start===0&&r.written[0].end===i(this,B)&&(r.shouldFlush=!0),i(this,_).length>ui){for(let u=0;u<i(this,_).length-1;u++)i(this,_)[u].shouldFlush=!0;m(this,J,le).call(this)}o.byteLength<e.byteLength&&m(this,he,_e).call(this,e.subarray(o.byteLength),t+o.byteLength)},ke=new WeakSet,Ze=function(e,t){let s=0,r=e.written.length-1,a=-1;for(;s<=r;){let o=Math.floor(s+(r-s+1)/2);e.written[o].start<=t.start?(s=o+1,a=o):r=o-1}for(e.written.splice(a+1,0,t),(a===-1||e.written[a].end<t.start)&&a++;a<e.written.length-1&&e.written[a].end>=e.written[a+1].start;)e.written[a].end=Math.max(e.written[a].end,e.written[a+1].end),e.written.splice(a+1,1)},Ee=new WeakSet,Ke=function(e){let s={start:Math.floor(e/i(this,B))*i(this,B),data:new Uint8Array(i(this,B)),written:[],shouldFlush:!1};return i(this,_).push(s),i(this,_).sort((r,a)=>r.start-a.start),i(this,_).indexOf(s)},J=new WeakSet,le=function(e=!1){for(let t=0;t<i(this,_).length;t++){let s=i(this,_)[t];if(!(!s.shouldFlush&&!e)){for(let r of s.written)i(this,K).options.onData?.(s.data.subarray(r.start,r.end),s.start+r.start);i(this,_).splice(t--,1)}}};var di=class extends ze{constructor(e){super(new Te({onData:(t,s)=>e.stream.write({type:"write",data:t,position:s}),chunked:!0,chunkSize:e.options?.chunkSize}))}},Ae=1e3,mi=["avc","hevc","vp9","av1"],pi=["aac","opus"],ci=2082844800,wi=["strict","offset","cross-track-offset"],h,f,fe,k,T,S,$,H,Oe,R,P,Y,Me,Qe,Be,Je,Ie,Ye,De,et,Ue,tt,ue,xe,M,I,We,it,ee,de,me,Fe,q,te,pe,Ne,vi=class{constructor(e){if(d(this,Me),d(this,Be),d(this,Ie),d(this,De),d(this,Ue),d(this,ue),d(this,M),d(this,We),d(this,ee),d(this,me),d(this,q),d(this,pe),d(this,h,void 0),d(this,f,void 0),d(this,fe,void 0),d(this,k,void 0),d(this,T,null),d(this,S,null),d(this,$,Math.floor(Date.now()/1e3)+ci),d(this,H,[]),d(this,Oe,1),d(this,R,[]),d(this,P,[]),d(this,Y,!1),m(this,Me,Qe).call(this,e),e.video=X(e.video),e.audio=X(e.audio),e.fastStart=X(e.fastStart),this.target=e.target,C(this,h,{firstTimestampBehavior:"strict",...e}),e.target instanceof qe)C(this,f,new li(e.target));else if(e.target instanceof Te)C(this,f,new ze(e.target));else if(e.target instanceof Xe)C(this,f,new di(e.target));else throw new Error(`Invalid target: ${e.target}`);m(this,De,et).call(this),m(this,Be,Je).call(this)}addVideoChunk(e,t,s,r){if(!(e instanceof EncodedVideoChunk))throw new TypeError("addVideoChunk's first argument (sample) must be of type EncodedVideoChunk.");if(t&&typeof t!="object")throw new TypeError("addVideoChunk's second argument (meta), when provided, must be an object.");if(s!==void 0&&(!Number.isFinite(s)||s<0))throw new TypeError("addVideoChunk's third argument (timestamp), when provided, must be a non-negative real number.");if(r!==void 0&&!Number.isFinite(r))throw new TypeError("addVideoChunk's fourth argument (compositionTimeOffset), when provided, must be a real number.");let a=new Uint8Array(e.byteLength);e.copyTo(a),this.addVideoChunkRaw(a,e.type,s??e.timestamp,e.duration,t,r)}addVideoChunkRaw(e,t,s,r,a,o){if(!(e instanceof Uint8Array))throw new TypeError("addVideoChunkRaw's first argument (data) must be an instance of Uint8Array.");if(t!=="key"&&t!=="delta")throw new TypeError("addVideoChunkRaw's second argument (type) must be either 'key' or 'delta'.");if(!Number.isFinite(s)||s<0)throw new TypeError("addVideoChunkRaw's third argument (timestamp) must be a non-negative real number.");if(!Number.isFinite(r)||r<0)throw new TypeError("addVideoChunkRaw's fourth argument (duration) must be a non-negative real number.");if(a&&typeof a!="object")throw new TypeError("addVideoChunkRaw's fifth argument (meta), when provided, must be an object.");if(o!==void 0&&!Number.isFinite(o))throw new TypeError("addVideoChunkRaw's sixth argument (compositionTimeOffset), when provided, must be a real number.");if(m(this,pe,Ne).call(this),!i(this,h).video)throw new Error("No video track declared.");if(typeof i(this,h).fastStart=="object"&&i(this,T).samples.length===i(this,h).fastStart.expectedVideoChunks)throw new Error(`Cannot add more video chunks than specified in 'fastStart' (${i(this,h).fastStart.expectedVideoChunks}).`);let l=m(this,ue,xe).call(this,i(this,T),e,t,s,r,a,o);if(i(this,h).fastStart==="fragmented"&&i(this,S)){for(;i(this,P).length>0&&i(this,P)[0].decodeTimestamp<=l.decodeTimestamp;){let u=i(this,P).shift();m(this,M,I).call(this,i(this,S),u)}l.decodeTimestamp<=i(this,S).lastDecodeTimestamp?m(this,M,I).call(this,i(this,T),l):i(this,R).push(l)}else m(this,M,I).call(this,i(this,T),l)}addAudioChunk(e,t,s){if(!(e instanceof EncodedAudioChunk))throw new TypeError("addAudioChunk's first argument (sample) must be of type EncodedAudioChunk.");if(t&&typeof t!="object")throw new TypeError("addAudioChunk's second argument (meta), when provided, must be an object.");if(s!==void 0&&(!Number.isFinite(s)||s<0))throw new TypeError("addAudioChunk's third argument (timestamp), when provided, must be a non-negative real number.");let r=new Uint8Array(e.byteLength);e.copyTo(r),this.addAudioChunkRaw(r,e.type,s??e.timestamp,e.duration,t)}addAudioChunkRaw(e,t,s,r,a){if(!(e instanceof Uint8Array))throw new TypeError("addAudioChunkRaw's first argument (data) must be an instance of Uint8Array.");if(t!=="key"&&t!=="delta")throw new TypeError("addAudioChunkRaw's second argument (type) must be either 'key' or 'delta'.");if(!Number.isFinite(s)||s<0)throw new TypeError("addAudioChunkRaw's third argument (timestamp) must be a non-negative real number.");if(!Number.isFinite(r)||r<0)throw new TypeError("addAudioChunkRaw's fourth argument (duration) must be a non-negative real number.");if(a&&typeof a!="object")throw new TypeError("addAudioChunkRaw's fifth argument (meta), when provided, must be an object.");if(m(this,pe,Ne).call(this),!i(this,h).audio)throw new Error("No audio track declared.");if(typeof i(this,h).fastStart=="object"&&i(this,S).samples.length===i(this,h).fastStart.expectedAudioChunks)throw new Error(`Cannot add more audio chunks than specified in 'fastStart' (${i(this,h).fastStart.expectedAudioChunks}).`);let o=m(this,ue,xe).call(this,i(this,S),e,t,s,r,a);if(i(this,h).fastStart==="fragmented"&&i(this,T)){for(;i(this,R).length>0&&i(this,R)[0].decodeTimestamp<=o.decodeTimestamp;){let l=i(this,R).shift();m(this,M,I).call(this,i(this,T),l)}o.decodeTimestamp<=i(this,T).lastDecodeTimestamp?m(this,M,I).call(this,i(this,S),o):i(this,P).push(o)}else m(this,M,I).call(this,i(this,S),o)}finalize(){if(i(this,Y))throw new Error("Cannot finalize a muxer more than once.");if(i(this,h).fastStart==="fragmented"){for(let t of i(this,R))m(this,M,I).call(this,i(this,T),t);for(let t of i(this,P))m(this,M,I).call(this,i(this,S),t);m(this,me,Fe).call(this,!1)}else i(this,T)&&m(this,ee,de).call(this,i(this,T)),i(this,S)&&m(this,ee,de).call(this,i(this,S));let e=[i(this,T),i(this,S)].filter(Boolean);if(i(this,h).fastStart==="in-memory"){let t;for(let r=0;r<2;r++){let a=re(e,i(this,$)),o=i(this,f).measureBox(a);t=i(this,f).measureBox(i(this,k));let l=i(this,f).pos+o+t;for(let u of i(this,H)){u.offset=l;for(let{data:g}of u.samples)l+=g.byteLength,t+=g.byteLength}if(l<2**32)break;t>=2**32&&(i(this,k).largeSize=!0)}let s=re(e,i(this,$));i(this,f).writeBox(s),i(this,k).size=t,i(this,f).writeBox(i(this,k));for(let r of i(this,H))for(let a of r.samples)i(this,f).write(a.data),a.data=null}else if(i(this,h).fastStart==="fragmented"){let t=i(this,f).pos,s=ti(e);i(this,f).writeBox(s);let r=i(this,f).pos-t;i(this,f).seek(i(this,f).pos-4),i(this,f).writeU32(r)}else{let t=i(this,f).offsets.get(i(this,k)),s=i(this,f).pos-t;i(this,k).size=s,i(this,k).largeSize=s>=2**32,i(this,f).patchBox(i(this,k));let r=re(e,i(this,$));if(typeof i(this,h).fastStart=="object"){i(this,f).seek(i(this,fe)),i(this,f).writeBox(r);let a=t-i(this,f).pos;i(this,f).writeBox(ct(a))}else i(this,f).writeBox(r)}m(this,q,te).call(this),i(this,f).finalize(),C(this,Y,!0)}};return h=new WeakMap,f=new WeakMap,fe=new WeakMap,k=new WeakMap,T=new WeakMap,S=new WeakMap,$=new WeakMap,H=new WeakMap,Oe=new WeakMap,R=new WeakMap,P=new WeakMap,Y=new WeakMap,Me=new WeakSet,Qe=function(e){if(typeof e!="object")throw new TypeError("The muxer requires an options object to be passed to its constructor.");if(!(e.target instanceof ae))throw new TypeError("The target must be provided and an instance of Target.");if(e.video){if(!mi.includes(e.video.codec))throw new TypeError(`Unsupported video codec: ${e.video.codec}`);if(!Number.isInteger(e.video.width)||e.video.width<=0)throw new TypeError(`Invalid video width: ${e.video.width}. Must be a positive integer.`);if(!Number.isInteger(e.video.height)||e.video.height<=0)throw new TypeError(`Invalid video height: ${e.video.height}. Must be a positive integer.`);const t=e.video.rotation;if(typeof t=="number"&&![0,90,180,270].includes(t))throw new TypeError(`Invalid video rotation: ${t}. Has to be 0, 90, 180 or 270.`);if(Array.isArray(t)&&(t.length!==9||t.some(s=>typeof s!="number")))throw new TypeError(`Invalid video transformation matrix: ${t.join()}`);if(e.video.frameRate!==void 0&&(!Number.isInteger(e.video.frameRate)||e.video.frameRate<=0))throw new TypeError(`Invalid video frame rate: ${e.video.frameRate}. Must be a positive integer.`)}if(e.audio){if(!pi.includes(e.audio.codec))throw new TypeError(`Unsupported audio codec: ${e.audio.codec}`);if(!Number.isInteger(e.audio.numberOfChannels)||e.audio.numberOfChannels<=0)throw new TypeError(`Invalid number of audio channels: ${e.audio.numberOfChannels}. Must be a positive integer.`);if(!Number.isInteger(e.audio.sampleRate)||e.audio.sampleRate<=0)throw new TypeError(`Invalid audio sample rate: ${e.audio.sampleRate}. Must be a positive integer.`)}if(e.firstTimestampBehavior&&!wi.includes(e.firstTimestampBehavior))throw new TypeError(`Invalid first timestamp behavior: ${e.firstTimestampBehavior}`);if(typeof e.fastStart=="object"){if(e.video){if(e.fastStart.expectedVideoChunks===void 0)throw new TypeError("'fastStart' is an object but is missing property 'expectedVideoChunks'.");if(!Number.isInteger(e.fastStart.expectedVideoChunks)||e.fastStart.expectedVideoChunks<0)throw new TypeError("'expectedVideoChunks' must be a non-negative integer.")}if(e.audio){if(e.fastStart.expectedAudioChunks===void 0)throw new TypeError("'fastStart' is an object but is missing property 'expectedAudioChunks'.");if(!Number.isInteger(e.fastStart.expectedAudioChunks)||e.fastStart.expectedAudioChunks<0)throw new TypeError("'expectedAudioChunks' must be a non-negative integer.")}}else if(![!1,"in-memory","fragmented"].includes(e.fastStart))throw new TypeError("'fastStart' option must be false, 'in-memory', 'fragmented' or an object.");if(e.minFragmentDuration!==void 0&&(!Number.isFinite(e.minFragmentDuration)||e.minFragmentDuration<0))throw new TypeError("'minFragmentDuration' must be a non-negative number.")},Be=new WeakSet,Je=function(){if(i(this,f).writeBox(pt({holdsAvc:i(this,h).video?.codec==="avc",fragmented:i(this,h).fastStart==="fragmented"})),C(this,fe,i(this,f).pos),i(this,h).fastStart==="in-memory")C(this,k,Se(!1));else if(i(this,h).fastStart!=="fragmented"){if(typeof i(this,h).fastStart=="object"){let e=m(this,Ie,Ye).call(this);i(this,f).seek(i(this,f).pos+e)}C(this,k,Se(!0)),i(this,f).writeBox(i(this,k))}m(this,q,te).call(this)},Ie=new WeakSet,Ye=function(){if(typeof i(this,h).fastStart!="object")return;let e=0,t=[i(this,h).fastStart.expectedVideoChunks,i(this,h).fastStart.expectedAudioChunks];for(let s of t)s&&(e+=8*Math.ceil(.6666666666666666*s),e+=4*s,e+=12*Math.ceil(.6666666666666666*s),e+=4*s,e+=8*s);return e+=4096,e},De=new WeakSet,et=function(){if(i(this,h).video&&C(this,T,{id:1,info:{type:"video",codec:i(this,h).video.codec,width:i(this,h).video.width,height:i(this,h).video.height,rotation:i(this,h).video.rotation??0,decoderConfig:null},timescale:i(this,h).video.frameRate??57600,samples:[],finalizedChunks:[],currentChunk:null,firstDecodeTimestamp:void 0,lastDecodeTimestamp:-1,timeToSampleTable:[],compositionTimeOffsetTable:[],lastTimescaleUnits:null,lastSample:null,compactlyCodedChunkTable:[]}),i(this,h).audio&&(C(this,S,{id:i(this,h).video?2:1,info:{type:"audio",codec:i(this,h).audio.codec,numberOfChannels:i(this,h).audio.numberOfChannels,sampleRate:i(this,h).audio.sampleRate,decoderConfig:null},timescale:i(this,h).audio.sampleRate,samples:[],finalizedChunks:[],currentChunk:null,firstDecodeTimestamp:void 0,lastDecodeTimestamp:-1,timeToSampleTable:[],compositionTimeOffsetTable:[],lastTimescaleUnits:null,lastSample:null,compactlyCodedChunkTable:[]}),i(this,h).audio.codec==="aac")){let e=m(this,Ue,tt).call(this,2,i(this,h).audio.sampleRate,i(this,h).audio.numberOfChannels);i(this,S).info.decoderConfig={codec:i(this,h).audio.codec,description:e,numberOfChannels:i(this,h).audio.numberOfChannels,sampleRate:i(this,h).audio.sampleRate}}},Ue=new WeakSet,tt=function(e,t,s){let a=[96e3,88200,64e3,48e3,44100,32e3,24e3,22050,16e3,12e3,11025,8e3,7350].indexOf(t),o=s,l="";l+=e.toString(2).padStart(5,"0"),l+=a.toString(2).padStart(4,"0"),a===15&&(l+=t.toString(2).padStart(24,"0")),l+=o.toString(2).padStart(4,"0");let u=Math.ceil(l.length/8)*8;l=l.padEnd(u,"0");let g=new Uint8Array(l.length/8);for(let b=0;b<l.length;b+=8)g[b/8]=parseInt(l.slice(b,b+8),2);return g},ue=new WeakSet,xe=function(e,t,s,r,a,o,l){let u=r/1e6,g=(r-(l??0))/1e6,b=a/1e6,U=m(this,We,it).call(this,u,g,e);return u=U.presentationTimestamp,g=U.decodeTimestamp,o?.decoderConfig&&(e.info.decoderConfig===null?e.info.decoderConfig=o.decoderConfig:Object.assign(e.info.decoderConfig,o.decoderConfig)),{presentationTimestamp:u,decodeTimestamp:g,duration:b,data:t,size:t.byteLength,type:s,timescaleUnitsToNextSample:O(b,e.timescale)}},M=new WeakSet,I=function(e,t){i(this,h).fastStart!=="fragmented"&&e.samples.push(t);const s=O(t.presentationTimestamp-t.decodeTimestamp,e.timescale);if(e.lastTimescaleUnits!==null){let a=O(t.decodeTimestamp,e.timescale,!1),o=Math.round(a-e.lastTimescaleUnits);if(e.lastTimescaleUnits+=o,e.lastSample.timescaleUnitsToNextSample=o,i(this,h).fastStart!=="fragmented"){let l=se(e.timeToSampleTable);l.sampleCount===1?(l.sampleDelta=o,l.sampleCount++):l.sampleDelta===o?l.sampleCount++:(l.sampleCount--,e.timeToSampleTable.push({sampleCount:2,sampleDelta:o}));const u=se(e.compositionTimeOffsetTable);u.sampleCompositionTimeOffset===s?u.sampleCount++:e.compositionTimeOffsetTable.push({sampleCount:1,sampleCompositionTimeOffset:s})}}else e.lastTimescaleUnits=0,i(this,h).fastStart!=="fragmented"&&(e.timeToSampleTable.push({sampleCount:1,sampleDelta:O(t.duration,e.timescale)}),e.compositionTimeOffsetTable.push({sampleCount:1,sampleCompositionTimeOffset:s}));e.lastSample=t;let r=!1;if(!e.currentChunk)r=!0;else{let a=t.presentationTimestamp-e.currentChunk.startTimestamp;if(i(this,h).fastStart==="fragmented"){let o=i(this,T)??i(this,S);const l=i(this,h).minFragmentDuration??1;e===o&&t.type==="key"&&a>=l&&(r=!0,m(this,me,Fe).call(this))}else r=a>=.5}r&&(e.currentChunk&&m(this,ee,de).call(this,e),e.currentChunk={startTimestamp:t.presentationTimestamp,samples:[]}),e.currentChunk.samples.push(t)},We=new WeakSet,it=function(e,t,s){const r=i(this,h).firstTimestampBehavior==="strict",a=s.lastDecodeTimestamp===-1;if(r&&a&&t!==0)throw new Error(`The first chunk for your media track must have a timestamp of 0 (received DTS=${t}).Non-zero first timestamps are often caused by directly piping frames or audio data from a MediaStreamTrack into the encoder. Their timestamps are typically relative to the age of thedocument, which is probably what you want.
+
+If you want to offset all timestamps of a track such that the first one is zero, set firstTimestampBehavior: 'offset' in the options.
+`);if(i(this,h).firstTimestampBehavior==="offset"||i(this,h).firstTimestampBehavior==="cross-track-offset"){s.firstDecodeTimestamp===void 0&&(s.firstDecodeTimestamp=t);let l;i(this,h).firstTimestampBehavior==="offset"?l=s.firstDecodeTimestamp:l=Math.min(i(this,T)?.firstDecodeTimestamp??1/0,i(this,S)?.firstDecodeTimestamp??1/0),t-=l,e-=l}if(t<s.lastDecodeTimestamp)throw new Error(`Timestamps must be monotonically increasing (DTS went from ${s.lastDecodeTimestamp*1e6} to ${t*1e6}).`);return s.lastDecodeTimestamp=t,{presentationTimestamp:e,decodeTimestamp:t}},ee=new WeakSet,de=function(e){if(i(this,h).fastStart==="fragmented")throw new Error("Can't finalize individual chunks if 'fastStart' is set to 'fragmented'.");if(e.currentChunk){if(e.finalizedChunks.push(e.currentChunk),i(this,H).push(e.currentChunk),(e.compactlyCodedChunkTable.length===0||se(e.compactlyCodedChunkTable).samplesPerChunk!==e.currentChunk.samples.length)&&e.compactlyCodedChunkTable.push({firstChunk:e.finalizedChunks.length,samplesPerChunk:e.currentChunk.samples.length}),i(this,h).fastStart==="in-memory"){e.currentChunk.offset=0;return}e.currentChunk.offset=i(this,f).pos;for(let t of e.currentChunk.samples)i(this,f).write(t.data),t.data=null;m(this,q,te).call(this)}},me=new WeakSet,Fe=function(e=!0){if(i(this,h).fastStart!=="fragmented")throw new Error("Can't finalize a fragment unless 'fastStart' is set to 'fragmented'.");let t=[i(this,T),i(this,S)].filter(u=>u&&u.currentChunk);if(t.length===0)return;let s=ut(this,Oe)._++;if(s===1){let u=re(t,i(this,$),!0);i(this,f).writeBox(u)}let r=i(this,f).pos,a=$e(s,t);i(this,f).writeBox(a);{let u=Se(!1),g=0;for(let U of t)for(let ie of U.currentChunk.samples)g+=ie.size;let b=i(this,f).measureBox(u)+g;b>=4294967296&&(u.largeSize=!0,b=i(this,f).measureBox(u)+g),u.size=b,i(this,f).writeBox(u)}for(let u of t){u.currentChunk.offset=i(this,f).pos,u.currentChunk.moofOffset=r;for(let g of u.currentChunk.samples)i(this,f).write(g.data),g.data=null}let o=i(this,f).pos;i(this,f).seek(i(this,f).offsets.get(a));let l=$e(s,t);i(this,f).writeBox(l),i(this,f).seek(o);for(let u of t)u.finalizedChunks.push(u.currentChunk),i(this,H).push(u.currentChunk),u.currentChunk=null;e&&m(this,q,te).call(this)},q=new WeakSet,te=function(){i(this,f)instanceof ze&&i(this,f).flush()},pe=new WeakSet,Ne=function(){if(i(this,Y))throw new Error("Cannot add new video or audio chunks after the file has been finalized.")},ft(Re)})();typeof module=="object"&&typeof module.exports=="object"&&Object.assign(module.exports,Mp4Muxer);
+</script>
+<script>
+(function(){
+"use strict";
+const U=1000, MARGIN=.09;
+const hx=v=>("0"+Math.max(0,Math.min(255,Math.round(v))).toString(16)).slice(-2);
+const bgHex=()=>"#"+hx(S.bg)+hx(S.bg)+hx(S.bg);
+function inkRGB(){
+  const h=(S.ink||"#20e6bf").replace("#","");
+  return [parseInt(h.slice(0,2),16)||0, parseInt(h.slice(2,4),16)||0, parseInt(h.slice(4,6),16)||0];
+}
+/* base export sizes; aspect is derived from them so the two can't drift apart */
+const SIZES={"1:1":[1080,1080],"4:5":[1080,1350],"16:9":[1920,1080],"9:16":[1080,1920]};
+const RATIOS=Object.fromEntries(Object.entries(SIZES).map(([k,v])=>[k,v[0]/v[1]]));
+const outW=()=>SIZES[S.ratio][0]*S.scale, outH=()=>SIZES[S.ratio][1]*S.scale;
+const resText=()=>outW()+" × "+outH()+" px";
+const SOURCE={
+  count:40, spread:.5, bend:.5, twist:.5, skew:.5, rot:0, gap:60,
+  fade:1.8, weight:1, zoom:1, ratio:"1:1",
+  bg:0, ink:"#20e6bf",   /* colours: never randomised */
+  scale:1, format:"png",
+  mid:.5, contrast:.35, peak:.35, alpha:.95
+};
+let S=JSON.parse(JSON.stringify(SOURCE));
+
+const uv=d=>{const r=d*Math.PI/180;return{x:Math.cos(r),y:Math.sin(r)};};
+const cubAt=(P,t)=>{const m=1-t,a=m*m*m,b=3*m*m*t,c=3*m*t*t,d=t*t*t;
+  return {x:a*P[0].x+b*P[1].x+c*P[2].x+d*P[3].x,y:a*P[0].y+b*P[1].y+c*P[2].y+d*P[3].y};};
+
+/* ---- the caustic fan ---- */
+function buildCurves(){
+  const V={x:500,y:500}, angA=-95, angB=angA+(50+S.spread*75);
+  const lenA=640, lenB=640*(.6+S.skew*.95), gap=S.gap;
+  const dA=uv(angA), dB=uv(angB), n=Math.round(S.count), out=[];
+  const twBase=(S.twist-.5)*2;
+  for(let i=0;i<n;i++){
+    const u=i/(n-1);
+    const uB=1-u;
+    const tw=twBase;
+    const p0={x:V.x+dA.x*(gap+u*lenA), y:V.y+dA.y*(gap+u*lenA)};
+    const p3={x:V.x+dB.x*(gap+uB*lenB), y:V.y+dB.y*(gap+uB*lenB)};
+    const ch=Math.hypot(p3.x-p0.x,p3.y-p0.y);
+    const L=Math.max(ch*S.bend*.5, ch*Math.abs(tw)*.22);
+    const d1=uv(angA+tw*130*u), d2=uv(angB-tw*130*(1-u));
+    out.push([p0,{x:p0.x+d1.x*L,y:p0.y+d1.y*L},{x:p3.x+d2.x*L,y:p3.y+d2.y*L},p3]);
+  }
+  return out;
+}
+
+/* opacity model, shared by rendering and framing */
+function lineFam(i,n){
+  const u=n>1?i/(n-1):.5;
+  const d=Math.abs(u-S.peak)/Math.max(S.peak,1-S.peak,1e-4);
+  return ((1-S.contrast)+S.contrast*Math.max(0,1-d))*S.alpha;
+}
+/* Each side is measured against its OWN length, so both ends reach zero.
+   Measuring both against the longer half left the short end cut off mid-bright. */
+function drop(t,m){
+  return t<m ? (m-t)/Math.max(m,1e-4) : (t-m)/Math.max(1-m,1e-4);
+}
+function prof(t){
+  return Math.pow(Math.max(0,1-drop(t,S.mid)),S.fade);
+}
+/* Framing uses a FIXED reference falloff, never S.fade. If it used the real
+   fade, raising Fade would shrink the visible band, auto-fit would zoom in to
+   compensate, and the two would cancel — making the Fade slider look dead. */
+const REF_FADE=1.6;
+function profRef(t){
+  return Math.pow(Math.max(0,1-drop(t,S.mid)),REF_FADE);
+}
+/* points where ink is broadly present — faded-out tails must not drive the framing */
+function inkPoints(R){
+  const pts=[];
+  for(const P of R){
+    for(let j=0;j<=24;j++){ const t=j/24; if(profRef(t)>.10) pts.push(cubAt(P,t)); }
+  }
+  if(pts.length>8) return pts;
+  for(const P of R) for(let j=0;j<=24;j++) pts.push(cubAt(P,j/24));
+  return pts;
+}
+/* 1 = round, 0 = sliver. Minor over major spread, via PCA. */
+function compactness(pts){
+  const n=pts.length; let mx=0,my=0;
+  for(const p of pts){mx+=p.x;my+=p.y;} mx/=n; my/=n;
+  let sxx=0,syy=0,sxy=0;
+  for(const p of pts){const dx=p.x-mx,dy=p.y-my; sxx+=dx*dx; syy+=dy*dy; sxy+=dx*dy;}
+  sxx/=n; syy/=n; sxy/=n;
+  const tr=sxx+syy, det=sxx*syy-sxy*sxy, disc=Math.sqrt(Math.max(0,tr*tr/4-det));
+  const l1=tr/2+disc, l2=tr/2-disc;
+  return l1>0 ? Math.sqrt(Math.max(l2,0)/l1) : 0;
+}
+
+/* rotate, then auto-fit the visible ink into the frame */
+function place(curves,W,H){
+  const a=S.rot*Math.PI/180, c=Math.cos(a), s=Math.sin(a);
+  const R=curves.map(P=>P.map(p=>{const dx=p.x-500,dy=p.y-500;
+    return {x:500+dx*c-dy*s, y:500+dx*s+dy*c};}));
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  for(const p of inkPoints(R)){
+    if(p.x<x0)x0=p.x; if(p.x>x1)x1=p.x; if(p.y<y0)y0=p.y; if(p.y>y1)y1=p.y;
+  }
+  const bw=(x1-x0)||1, bh=(y1-y0)||1;
+  const k=Math.min(W*(1-2*MARGIN)/bw, H*(1-2*MARGIN)/bh)*S.zoom;
+  const ox=W/2-(x0+bw/2)*k, oy=H/2-(y0+bh/2)*k;
+  return R.map(P=>P.map(p=>({x:p.x*k+ox, y:p.y*k+oy})));
+}
+function stops(i,n){
+  const fam=lineFam(i,n), out=[];
+  for(let j=0;j<=8;j++){ const t=j/8; out.push([t, Math.round(fam*prof(t)*1000)/1000]); }
+  return out;
+}
+
+const cv=document.getElementById("c"), ctx=cv.getContext("2d"), wrap=document.getElementById("wrap");
+/* Strokes are drawn as an opaque greyscale ink map with the 'lighten' blend, so a
+   crossing takes the MAX of the two values instead of compositing them together.
+   The map is then coloured in one pass. Without this, two 40% lines read as 64%
+   where they meet, which is the glow you see when you zoom into a crossing. */
+const grey=a=>{const v=Math.round(Math.max(0,Math.min(1,a))*255);return "rgb("+v+","+v+","+v+")";};
+let maskCv=null,maskCtx=null;
+function paint(target,W,H){
+  if(!maskCv){ maskCv=document.createElement("canvas");
+    maskCtx=maskCv.getContext("2d",{willReadFrequently:true}); }
+  maskCv.width=W; maskCv.height=H;
+  const m=maskCtx;
+  m.setTransform(1,0,0,1,0,0);
+  m.globalCompositeOperation="source-over";
+  m.fillStyle="#000"; m.fillRect(0,0,W,H);
+  m.globalCompositeOperation="lighten";
+  m.lineCap="butt"; m.lineWidth=S.weight*S.zoom*(W/U);
+  const P=place(buildCurves(),W,H);
+  P.forEach((c,i)=>{
+    const g=m.createLinearGradient(c[0].x,c[0].y,c[3].x,c[3].y);
+    stops(i,P.length).forEach(([t,a])=>g.addColorStop(t,grey(a)));
+    m.strokeStyle=g; m.beginPath();
+    m.moveTo(c[0].x,c[0].y);
+    m.bezierCurveTo(c[1].x,c[1].y,c[2].x,c[2].y,c[3].x,c[3].y);
+    m.stroke();
+  });
+  m.globalCompositeOperation="source-over";
+  const img=m.getImageData(0,0,W,H), d=img.data;
+  const ink=inkRGB(), b=S.bg;
+  const dr=ink[0]-b, dg=ink[1]-b, db=ink[2]-b;
+  for(let q=0;q<d.length;q+=4){
+    const a=d[q]/255;
+    d[q]=b+dr*a; d[q+1]=b+dg*a; d[q+2]=b+db*a; d[q+3]=255;
+  }
+  target.putImageData(img,0,0);
+  return P.length;
+}
+function draw(){
+  const ar=RATIOS[S.ratio];
+  let w=wrap.clientWidth, h=w/ar;
+  if(h>wrap.clientHeight){h=wrap.clientHeight;w=h*ar;}
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  cv.style.width=w+"px";cv.style.height=h+"px";
+  cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);
+  cv.style.background=bgHex();
+  ctx.setTransform(1,0,0,1,0,0);
+  paint(ctx,cv.width,cv.height);
+  document.getElementById("statFmt").textContent=S.ratio;
+  document.getElementById("statRes").textContent=resText();
+  syncJson();
+}
+
+function svgString(){
+  const h=Math.round(U/RATIOS[S.ratio]), f=v=>Math.round(v*100)/100;
+  const P=place(buildCurves(),U,h);
+  let defs="",body="";
+  P.forEach((c,i)=>{
+    defs+='<linearGradient id="g'+i+'" gradientUnits="userSpaceOnUse" x1="'+f(c[0].x)+'" y1="'+f(c[0].y)+'" x2="'+f(c[3].x)+'" y2="'+f(c[3].y)+'">'+
+      stops(i,P.length).map(function(s){return '<stop offset="'+s[0]+'" stop-color="'+S.ink+'" stop-opacity="'+s[1]+'"/>';}).join("")+'</linearGradient>';
+    body+='<path d="M'+f(c[0].x)+' '+f(c[0].y)+'C'+f(c[1].x)+' '+f(c[1].y)+' '+f(c[2].x)+' '+f(c[2].y)+' '+f(c[3].x)+' '+f(c[3].y)+'" stroke="url(#g'+i+')"/>\n';
+  });
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+U+' '+h+'" width="'+outW()+'" height="'+outH()+'">\n'+
+    '<defs>'+defs+'</defs>\n'+
+    '<g fill="none" stroke-width="'+f(S.weight*S.zoom)+'">\n'+body+'</g>\n</svg>\n';
+}
+const fname=e=>"lineblend_"+S.ratio.replace(":","x")+"_"+outW()+"x"+outH()+"."+e;
+const dlPromise=(async()=>{try{return (window.claude&&window.claude.use)?await window.claude.use("downloads"):null;}catch(_){return null;}})();
+function bail(b,m){const o=b.dataset.lbl||b.textContent;b.dataset.lbl=o;b.textContent=m;b.disabled=false;
+  clearTimeout(b._t);b._t=setTimeout(()=>{b.textContent=b.dataset.lbl;},2400);}
+/* Claude's artifact sandbox blocks ordinary download links and provides its own
+   save API instead. On a normal host (GitHub Pages, any static server, file://)
+   that API is absent, so fall back to a plain anchor download. */
+function saveViaAnchor(data,filename){
+  const url=URL.createObjectURL(data);
+  const a=document.createElement("a");
+  a.href=url; a.download=filename; a.rel="noopener";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+async function offer(btn,data,filename){
+  if(!data||!data.size) return bail(btn,"Export came out empty");
+  const old=btn.dataset.lbl||btn.textContent;
+  btn.dataset.lbl=old;btn.disabled=true;btn.textContent="Preparing";
+  let msg=old,hold=1500;
+  try{
+    const dl=await dlPromise;
+    if(!dl){ saveViaAnchor(data,filename); msg="Saved"; }
+    else{btn.textContent="Confirm the save";await dl.save({filename,data});msg="Saved";}
+  }catch(e){const c=e&&e.code;
+    msg=c==="declined"?old:c==="rate_limited"?"Finish the open save":c==="too_large"?"Too large, use SVG":"Couldn't save";hold=2600;}
+  btn.textContent=msg;btn.disabled=false;
+  clearTimeout(btn._t);btn._t=setTimeout(()=>{btn.textContent=btn.dataset.lbl;},hold);
+}
+function exportPNG(btn){
+  const w=outW(), h=outH();
+  let off,g;
+  try{off=document.createElement("canvas");off.width=w;off.height=h;g=off.getContext("2d");}catch(_){g=null;}
+  if(!g||off.width!==w)return bail(btn,"Too big, use SVG");
+  paint(g,w,h);
+  btn.disabled=true;
+  off.toBlob(b=>{btn.disabled=false;if(!b)return bail(btn,"Too big, use SVG");offer(btn,b,fname("png"));},"image/png");
+}
+
+/* ---- controls ---- */
+const sliders={};
+document.querySelectorAll(".ctrl").forEach(el=>{
+  const k=el.dataset.k,id="s_"+k,step=parseFloat(el.dataset.step);
+  el.innerHTML='<div class="row"><label for="'+id+'">'+el.dataset.label+'</label><output></output></div>'+
+    '<input type="range" id="'+id+'" min="'+el.dataset.min+'" max="'+el.dataset.max+'" step="'+el.dataset.step+'">'+
+    (el.dataset.hint?'<div class="hint">'+el.dataset.hint+'</div>':'');
+  const input=el.querySelector("input"),out=el.querySelector("output");
+  const show=v=>{out.textContent=el.dataset.gray?("#"+hx(v)+hx(v)+hx(v)).toUpperCase():
+    (el.dataset.pct?Math.round(v*100)+"%":
+    step>=1?Math.round(v):(Math.round(v*100)/100).toFixed(2))+(el.dataset.unit||"");};
+  input.addEventListener("input",()=>{S[k]=parseFloat(input.value);show(S[k]);draw();});
+  sliders[k]={input,show};
+});
+const inkHex=document.getElementById("inkHex");
+const swatchBtn=document.getElementById("swatchBtn"), picker=document.getElementById("picker");
+const svEl=document.getElementById("sv"), svDot=document.getElementById("svDot"), hueEl=document.getElementById("hue");
+/* hex is the only format the interface exposes; HSV exists purely to drive the picker */
+function hexToHsv(hex){
+  const c=hex.replace("#","");
+  const r=parseInt(c.slice(0,2),16)/255, g=parseInt(c.slice(2,4),16)/255, b=parseInt(c.slice(4,6),16)/255;
+  const mx=Math.max(r,g,b), mn=Math.min(r,g,b), d=mx-mn;
+  let h=0;
+  if(d){ h = mx===r ? ((g-b)/d+(g<b?6:0)) : mx===g ? ((b-r)/d+2) : ((r-g)/d+4); h*=60; }
+  return {h, s: mx?d/mx:0, v: mx};
+}
+function hsvToHex(h,s,v){
+  h=((h%360)+360)%360;
+  const c=v*s, x=c*(1-Math.abs((h/60)%2-1)), m=v-c;
+  const t=h<60?[c,x,0]:h<120?[x,c,0]:h<180?[0,c,x]:h<240?[0,x,c]:h<300?[x,0,c]:[c,0,x];
+  return "#"+hx((t[0]+m)*255)+hx((t[1]+m)*255)+hx((t[2]+m)*255);
+}
+let HSV={h:0,s:0,v:0};
+function paintPicker(){
+  svEl.style.setProperty("--hue", hsvToHex(HSV.h,1,1));
+  svDot.style.left=(HSV.s*100)+"%";
+  svDot.style.top=((1-HSV.v)*100)+"%";
+  svDot.style.background=S.ink;
+  hueEl.value=Math.round(HSV.h);
+}
+function setInk(hex,repaintPicker){
+  S.ink=hex;
+  inkHex.value=hex.toUpperCase(); inkHex.classList.remove("bad");
+  swatchBtn.style.background=hex;
+  document.getElementById("chipSwatch").style.background=hex;
+  document.getElementById("chipHex").textContent=hex.toUpperCase();
+  if(repaintPicker){ HSV=hexToHsv(hex); }
+  paintPicker();
+  draw();
+}
+function svFromEvent(e){
+  const r=svEl.getBoundingClientRect();
+  HSV.s=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));
+  HSV.v=Math.min(1,Math.max(0,1-(e.clientY-r.top)/r.height));
+  setInk(hsvToHex(HSV.h,HSV.s,HSV.v),false);
+}
+svEl.addEventListener("pointerdown",e=>{svEl.setPointerCapture(e.pointerId);svFromEvent(e);});
+svEl.addEventListener("pointermove",e=>{if(e.buttons)svFromEvent(e);});
+hueEl.addEventListener("input",()=>{HSV.h=parseFloat(hueEl.value);setInk(hsvToHex(HSV.h,HSV.s,HSV.v),false);});
+swatchBtn.addEventListener("click",()=>{
+  const open=picker.hidden;
+  picker.hidden=!open; swatchBtn.setAttribute("aria-expanded",String(open));
+  if(open){ HSV=hexToHsv(S.ink); paintPicker(); }
+});
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"&&!picker.hidden){picker.hidden=true;swatchBtn.setAttribute("aria-expanded","false");}
+});
+const norm=t=>{
+  let v=String(t||"").trim().replace(/^#/,"");
+  if(/^[0-9a-fA-F]{3}$/.test(v)) v=v[0]+v[0]+v[1]+v[1]+v[2]+v[2];
+  return /^[0-9a-fA-F]{6}$/.test(v) ? "#"+v.toLowerCase() : null;
+};
+function sync(){
+  for(const k in sliders){sliders[k].input.value=S[k];sliders[k].show(S[k]);}
+  document.querySelectorAll("#ratios .btn").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.r===S.ratio)));
+  document.querySelectorAll("#scales .btn").forEach(b=>b.setAttribute("aria-pressed",String(+b.dataset.m===S.scale)));
+  document.querySelectorAll("#formats .btn").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.f===S.format)));
+  document.getElementById("exres").textContent=resText()+(S.format==="svg"?"  ·  vector":"");
+  inkHex.value=S.ink.toUpperCase(); inkHex.classList.remove("bad");
+  swatchBtn.style.background=S.ink;
+  document.getElementById("chipSwatch").style.background=S.ink;
+  document.getElementById("chipHex").textContent=S.ink.toUpperCase();
+  HSV=hexToHsv(S.ink); paintPicker();
+  document.querySelectorAll("#vidRatios .btn").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.r===S.ratio)));
+  for(const k in mctrls){mctrls[k].input.value=M[k];mctrls[k].show();}
+}
+inkHex.addEventListener("input",()=>{
+  const v=norm(inkHex.value);
+  if(v) setInk(v,true);
+  else inkHex.classList.add("bad");
+});
+inkHex.addEventListener("blur",()=>{inkHex.value=S.ink.toUpperCase();inkHex.classList.remove("bad");});
+const ratiosEl=document.getElementById("ratios");
+Object.keys(RATIOS).forEach(r=>{
+  const b=document.createElement("button");
+  b.className="btn";b.textContent=r;b.dataset.r=r;
+  b.onclick=()=>{S.ratio=r;sync();draw();};
+  ratiosEl.appendChild(b);
+});
+
+const rnd=(a,b)=>a+Math.random()*(b-a);
+function roll(){
+  S.spread=rnd(0,.80); S.bend=rnd(.05,.95); S.twist=rnd(0,1); S.skew=rnd(.1,.9);
+  S.gap=rnd(20,200);
+  S.rot=Math.round(rnd(0,360));
+  S.fade=rnd(1.5,3); S.weight=rnd(.4,1);
+  S.mid=rnd(.3,.7); S.contrast=rnd(.15,.6); S.peak=rnd(.1,.9);
+}
+document.getElementById("randomize").onclick=()=>{
+  const keep={bg:S.bg, ink:S.ink, zoom:S.zoom, ratio:S.ratio, scale:S.scale, format:S.format};
+  /* keep rolling until the shape is round enough to fill the frame */
+  let best=null, bestScore=-1;
+  for(let a=0;a<60;a++){
+    roll();
+    const sc=compactness(inkPoints(buildCurves()));
+    if(sc>bestScore){ bestScore=sc; best=JSON.parse(JSON.stringify(S)); }
+    if(sc>=.38) break;
+  }
+  S=best;
+  Object.assign(S,keep);               // colours, zoom and format never shuffle
+  sync();
+  if(videoMode) rebuildMotion(); else draw();
+};
+document.getElementById("reset").onclick=()=>{
+  const keep={ratio:S.ratio, zoom:S.zoom, bg:S.bg, ink:S.ink, scale:S.scale, format:S.format};
+  S=Object.assign(JSON.parse(JSON.stringify(SOURCE)),keep);sync();
+  if(videoMode) rebuildMotion(); else draw();
+};
+const scalesEl=document.getElementById("scales");
+[1,2,3,4].forEach(m=>{
+  const b=document.createElement("button");
+  b.className="btn";b.textContent=m+"x";b.dataset.m=m;
+  b.onclick=()=>{S.scale=m;sync();draw();};
+  scalesEl.appendChild(b);
+});
+const formatsEl=document.getElementById("formats");
+[["png","PNG"],["svg","SVG"]].forEach(f=>{
+  const b=document.createElement("button");
+  b.className="btn";b.textContent=f[1];b.dataset.f=f[0];
+  b.onclick=()=>{S.format=f[0];sync();draw();};
+  formatsEl.appendChild(b);
+});
+document.getElementById("exportBtn").onclick=e=>{
+  if(S.format==="svg") offer(e.currentTarget,new Blob([svgString()],{type:"image/svg+xml"}),fname("svg"));
+  else exportPNG(e.currentTarget);
+};
+document.getElementById("copy").onclick=async e=>{
+  const t=document.getElementById("json");t.select();
+  try{await navigator.clipboard.writeText(t.value);}catch(_){document.execCommand("copy");}
+  const b=e.currentTarget,o=b.textContent;b.textContent="Copied";setTimeout(()=>b.textContent=o,1100);
+};
+document.getElementById("apply").onclick=()=>{
+  const b=document.getElementById("apply");
+  try{const v=JSON.parse(document.getElementById("json").value);
+    const vm=v.motion; delete v.motion;
+    S=Object.assign(JSON.parse(JSON.stringify(SOURCE)),v);
+    if(!RATIOS[S.ratio])S.ratio="1:1"; S.count=SOURCE.count;
+    if([1,2,3,4].indexOf(S.scale)<0)S.scale=1; if(S.format!=="svg")S.format="png";
+    if(vm) Object.assign(M,vm);
+    if(!(M.len>=6&&M.len<=20)) M.len=9;
+    clock=Math.min(clock,loopLen()); buildTimeline(); syncVidExport();
+    sync();
+    if(videoMode) rebuildMotion(); else draw();}
+  catch(_){b.textContent="Not valid";setTimeout(()=>b.textContent="Apply pasted",1400);}
+};
+
+/* ==== Motion / video creator ====
+   Integrated as closely to verbatim from the approved reference as merging
+   it into this file's architecture allows. Renamed only where a name would
+   otherwise collide with the static generator above: paint->paintMotion,
+   draw->videoDraw, size->videoSize, #ratios->#vidRatios, .ctrl->.mctrl.
+   buildCurves/place/lineFam/cubAt/inkPoints/stops/inkRGB are the SAME
+   functions the static generator uses — not duplicated. No timing, easing,
+   formula or default value has been changed from the approved spec, and
+   nothing here is ever drawn while the generator view is showing. */
+const T=10;
+const BEATS=[
+  {name:"Untangle", back:"Tangle", a:0, b:5.3},
+  {name:"Turn to diagonal", back:"Turn back", a:1.9, b:8.1},
+  {name:"Zoom in", back:"Zoom out", a:3.3, b:10}
+];
+const M={len:9, mass:.55, momentum:.5, stagger:.4, bow:.35, space:.5, share:1/3, thick:false, soft:.86, hold:.2};
+const dot=(a,b)=>a.x*b.x+a.y*b.y;
+const cl=v=>v<0?0:v>1?1:v;
+/* One ease for everything: zero speed at both ends, so reversing is seamless.
+   Softness lowers the exponent, which lowers the peak speed. */
+/* Velocity ramps in and out along a sine-squared curve, so both speed AND
+   acceleration are zero at each end. The old power ease reached zero speed but
+   with an infinite kick in acceleration, which read as a hiccup every time a
+   move started or stopped, most visibly at the loop point. */
+const ease=t=>{
+  t=cl(t); const r=.5-.25*M.soft, V=1/(1-r);
+  const ramp=x=>V*(x/2-r/(2*Math.PI)*Math.sin(Math.PI*x/r));
+  return t<r?ramp(t):t>1-r?1-ramp(1-t):V*(r/2+t-r);
+};
+/* Loop clock: the whole video is 10 s. Hold, forward, hold, the same run backwards.
+   Beats are authored on a 10-unit scale and squeezed into the forward half. */
+const loopLen=()=>M.len;
+const fwd=()=>loopLen()/2-M.hold;
+const fmtS=v=>(Math.round(v*10)/10)+" s";
+function clockToT(c){
+  const h=M.hold, F=fwd();
+  if(c<h/2) return 0;
+  if(c<h/2+F) return T*ease((c-h/2)/F);
+  if(c<1.5*h+F) return T;
+  if(c<1.5*h+2*F) return T*(1-ease((c-(1.5*h+F))/F));
+  return 0;
+}
+
+/* --- motion model ---
+   Beat 1: every curve morphs to a member of one family of identical curves,
+           shifted only sideways, so no two can touch.
+   Beat 2: the family turns until it runs along the canvas diagonal
+           (bottom-left to top-right) and flattens a little.
+   Beat 3: the camera pushes in on the brightest run of lines so that
+           one edge sits on the diagonal and the other reaches the corner. */
+let G=null;
+function rotAbout(p,c,a){const cs=Math.cos(a),sn=Math.sin(a),dx=p.x-c.x,dy=p.y-c.y;
+  return {x:c.x+dx*cs-dy*sn, y:c.y+dx*sn+dy*cs};}
+function target(i,bow){
+  const d=G.d, np=G.np, L=G.L, o=G.off(i), h=bow/.75;
+  const b={x:G.C.x+np.x*o, y:G.C.y+np.y*o};
+  const p0={x:b.x-d.x*L/2, y:b.y-d.y*L/2}, p3={x:b.x+d.x*L/2, y:b.y+d.y*L/2};
+  return [p0,
+    {x:p0.x+d.x*L/3+np.x*h, y:p0.y+d.y*L/3+np.y*h},
+    {x:p3.x-d.x*L/3+np.x*h, y:p3.y-d.y*L/3+np.y*h},
+    p3];
+}
+function prepare(){
+  const Wd=U, Hd=Math.round(U/RATIOS[S.ratio]);
+  const P=place(buildCurves(),Wd,Hd), n=P.length;
+  const mids=P.map(c=>cubAt(c,.5));
+  let cx=0,cy=0,dx=0,dy=0,Ls=0;
+  mids.forEach(m=>{cx+=m.x;cy+=m.y;}); cx/=n; cy/=n;
+  P.forEach(c=>{const vx=c[3].x-c[0].x, vy=c[3].y-c[0].y, l=Math.hypot(vx,vy)||1;
+    dx+=vx/l; dy+=vy/l; Ls+=l;});
+  let dl=Math.hypot(dx,dy); if(dl<1e-6){dx=1;dy=0;dl=1;}
+  const d={x:dx/dl,y:dy/dl}, np={x:-d.y,y:d.x}, C={x:cx,y:cy};
+  let corr=0,bulge=0;
+  P.forEach((c,i)=>{
+    corr+=(i-(n-1)/2)*((mids[i].x-cx)*np.x+(mids[i].y-cy)*np.y);
+    bulge+=(mids[i].x-(c[0].x+c[3].x)/2)*np.x+(mids[i].y-(c[0].y+c[3].y)/2)*np.y;
+  });
+  const sg=corr>=0?1:-1, bs=bulge>=0?1:-1;
+  const sp=4+M.space*12;
+  const L=Ls/n*1.05;
+  G={Wd,Hd,P,n,d,np,C,L,off:i=>sg*(i-(n-1)/2)*sp};
+  G.bow1=bs*M.bow*.12*L; G.bow2=G.bow1/3;
+  const wrapAngle=x=>{while(x>Math.PI)x-=2*Math.PI;while(x<-Math.PI)x+=2*Math.PI;return x;};
+  const a=Math.atan2(d.y,d.x), g=Math.atan2(-Hd,Wd);
+  const r1=wrapAngle(g-a), r2=wrapAngle(g+Math.PI-a);
+  G.rot=Math.abs(r1)<=Math.abs(r2)?r1:r2;
+  /* brightest run of lines */
+  const m=Math.max(2,Math.min(n,Math.round(n*M.share)));
+  let best=0,bestS=-1;
+  for(let j=0;j+m<=n;j++){let s=0;for(let q=j;q<j+m;q++)s+=lineFam(q,n);if(s>bestS){bestS=s;best=j;}}
+  const nl=Math.hypot(Hd,Wd), nS={x:Hd/nl,y:Wd/nl};
+  const fin=i=>cubAt(target(i,G.bow2).map(p=>rotAbout(p,C,G.rot)),S.mid);
+  const pA=fin(best), pB=fin(best+m-1), kA=dot(pA,nS), kB=dot(pB,nS);
+  G.f1=kA<=kB?pA:pB;
+  G.k1=(Wd*Hd/nl)/(Math.abs(kB-kA)||1);
+  G.sc1={x:Wd/2,y:Hd/2};
+  G.band=[best,best+m-1];
+  G.peakIdx=S.peak*(n-1);
+  G.maxDist=Math.max(G.peakIdx,n-1-G.peakIdx)||1;
+}
+function poseState(t){
+  const B1=BEATS[0],B2=BEATS[1],B3=BEATS[2];
+  const stg=M.stagger*T/fwd(), dur1=Math.max(.8,(B1.b-B1.a)-stg);
+  const e2=ease(cl((t-B2.a)/(B2.b-B2.a)));
+  const e3=ease(cl((t-B3.a)/(B3.b-B3.a)));
+  return {t,stg,dur1,e2,bow:G.bow1+(G.bow2-G.bow1)*e2,k:Math.pow(G.k1,e3),
+    fx:G.f1.x+(G.sc1.x-G.f1.x)*e3, fy:G.f1.y+(G.sc1.y-G.f1.y)*e3};
+}
+function lineAt(i,st){
+  const delay=st.stg*Math.abs(i-G.peakIdx)/G.maxDist;
+  const e1=ease(cl((st.t-BEATS[0].a-delay)/st.dur1));
+  const Q=target(i,st.bow);
+  return G.P[i].map((p,j)=>{
+    const w=rotAbout({x:p.x+(Q[j].x-p.x)*e1, y:p.y+(Q[j].y-p.y)*e1},G.C,G.rot*st.e2);
+    return {x:st.k*(w.x-G.f1.x)+st.fx, y:st.k*(w.y-G.f1.y)+st.fy};
+  });
+}
+/* design-time pose without weight (used for checks) */
+function frame(t){
+  const st=poseState(t), out=[];
+  for(let i=0;i<G.n;i++) out.push(lineAt(i,st));
+  return {curves:out,k:st.k};
+}
+/* Weight and momentum.
+   Each point along a line reads the pose from slightly earlier on the loop clock:
+   the bright part leads, the tails trail, and lines further from the bright
+   run follow a moment later. That gives the wave. Momentum extrapolates the
+   point along its own recent velocity, so it runs past and settles back when a
+   move slows down. Everything is a function of the loop clock, so the loop
+   stays exactly periodic, and the lines trail behind in whichever direction
+   they are moving, forwards or backwards. */
+const NS=64, EPS=.12;
+/* delays grow with the square of the distance, so the bend has no kink */
+function frameClock(c){
+  const L=loopLen(), D=.3*M.mass, spread=.1*M.mass, mo=.9*M.momentum;
+  const wrapC=v=>((v%L)+L)%L;
+  const span=Math.max(S.mid,1-S.mid,1e-4);
+  const cache=new Map();
+  const stAt=cc=>{const tt=clockToT(wrapC(cc)), key=Math.round(tt*1e4);
+    let st=cache.get(key); if(!st){st=poseState(tt);cache.set(key,st);} return st;};
+  const out=[];
+  for(let i=0;i<G.n;i++){
+    const qi=(i-G.peakIdx)/G.maxDist, li=spread*qi*qi, pts=[];
+    for(let j=0;j<=NS;j++){
+      const u=j/NS, q=(u-S.mid)/span, cc=c-li-D*q*q;
+      const p1=cubAt(lineAt(i,stAt(cc)),u);
+      if(mo>0){const p0=cubAt(lineAt(i,stAt(cc-EPS)),u);
+        pts.push({x:p1.x+(p1.x-p0.x)*mo, y:p1.y+(p1.y-p0.y)*mo});}
+      else pts.push(p1);
+    }
+    out.push(pts);
+  }
+  return {lines:out,k:poseState(clockToT(wrapC(c))).k};
+}
+
+/* --- rendering: same 'lighten' blend as the static generator, but drawn
+   straight onto an opaque background at 60fps (no getImageData).
+   paintMotionTo takes an explicit target/size so the same exact renderer
+   can draw the live preview OR an offscreen canvas at export resolution —
+   the pixels are identical either way, just at a different scale. --- */
+function paintMotionTo(target,W,H,c){
+  const {lines,k}=frameClock(c), s=W/G.Wd;
+  const ink=inkRGB(), b=S.bg;
+  const col=a=>{a=cl(a);return "rgb("+Math.round(b+(ink[0]-b)*a)+","+Math.round(b+(ink[1]-b)*a)+","+Math.round(b+(ink[2]-b)*a)+")";};
+  target.setTransform(1,0,0,1,0,0);
+  target.globalCompositeOperation="source-over";
+  target.fillStyle="rgb("+b+","+b+","+b+")"; target.fillRect(0,0,W,H);
+  target.globalCompositeOperation="lighten";
+  target.lineCap="butt";
+  target.lineWidth=S.weight*S.zoom*s*(M.thick?Math.pow(k,.45):1);
+  lines.forEach((pts,i)=>{
+    const a0=pts[0], a1=pts[pts.length-1];
+    const g=target.createLinearGradient(a0.x*s,a0.y*s,a1.x*s,a1.y*s);
+    stops(i,lines.length).forEach(([p,a])=>g.addColorStop(p,col(a)));
+    target.strokeStyle=g; target.beginPath();
+    target.moveTo(a0.x*s,a0.y*s);
+    /* smooth through the samples: quadratic segments via midpoints,
+       since each point along a line has its own independent delay */
+    for(let j=1;j<pts.length-1;j++){
+      const q=pts[j], r=pts[j+1];
+      target.quadraticCurveTo(q.x*s,q.y*s,(q.x+r.x)/2*s,(q.y+r.y)/2*s);
+    }
+    target.lineTo(a1.x*s,a1.y*s);
+    target.stroke();
+  });
+  target.globalCompositeOperation="source-over";
+}
+function paintMotion(c){ paintMotionTo(ctx,cv.width,cv.height,c); }
+function videoSize(){
+  const ar=RATIOS[S.ratio];
+  let w=wrap.clientWidth-2, h=w/ar;
+  if(h>wrap.clientHeight-2){h=wrap.clientHeight-2;w=h*ar;}
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  cv.style.width=w+"px"; cv.style.height=h+"px";
+  cv.width=Math.max(1,Math.round(w*dpr)); cv.height=Math.max(1,Math.round(h*dpr));
+}
+
+/* --- timeline --- */
+const tl=document.getElementById("tl"), head=document.getElementById("head"), timeEl=document.getElementById("time");
+const ticks=document.getElementById("ticks"), lanes=document.getElementById("lanes");
+const tlFoot=document.getElementById("tlFoot"), stageFootStatic=document.getElementById("stageFootStatic");
+let fills=[];
+/* clock time at which the forward run reaches authored time tv */
+function clockFor(tv){
+  let lo=0,hi=1;
+  for(let n=0;n<30;n++){const m=(lo+hi)/2; if(T*ease(m)<tv) lo=m; else hi=m;}
+  return M.hold/2+fwd()*(lo+hi)/2;
+}
+function buildTimeline(){
+  const L=loopLen(); ticks.innerHTML=""; lanes.innerHTML="";
+  const marks=[]; for(let v=0;v<L-.9;v+=2) marks.push(v); marks.push(L);
+  marks.forEach(v=>{const e=document.createElement("span");e.style.left=(v/L*100)+"%";
+    e.textContent=fmtS(v);ticks.appendChild(e);});
+  fills=BEATS.map((B,i)=>{
+    const lane=document.createElement("div");lane.className="lane";
+    const mk=(a,b,label,rev)=>{const bar=document.createElement("div");bar.className="bar"+(rev?" rev":"");
+      bar.style.left=(a/L*100)+"%";bar.style.width=((b-a)/L*100)+"%";
+      bar.innerHTML="<i></i><b>"+(i+1)+"</b> "+label;lane.appendChild(bar);return bar.querySelector("i");};
+    const ca=clockFor(B.a), cb=clockFor(B.b);
+    const f=mk(ca,cb,B.name,false);
+    const r=mk(L-cb,L-ca,B.back,true);
+    lanes.appendChild(lane);return {f,r,B};
+  });
+}
+let videoMode=false, clock=0, playing=!window.matchMedia("(prefers-reduced-motion: reduce)").matches, loopOn=true, last=null;
+let t=0;
+function ui(){
+  const L=loopLen(), h=M.hold, F=fwd(), tt=clockToT(clock), fw=clock<L/2;
+  head.style.left=(clock/L*100)+"%";
+  timeEl.textContent=clock.toFixed(1)+" / "+L.toFixed(1)+" s  ·  "+(clock<h/2+F?"forward":clock<1.5*h+F?"hold":"backward");
+  tl.setAttribute("aria-valuemax",L.toFixed(1));tl.setAttribute("aria-valuenow",clock.toFixed(1));
+  fills.forEach(({f,r,B})=>{
+    f.style.width=(fw?cl((tt-B.a)/(B.b-B.a)):1)*100+"%";
+    r.style.width=(fw?0:cl((B.b-tt)/(B.b-B.a)))*100+"%";
+  });
+  playBtn.textContent=playing?"Pause preview":"Play preview";
+}
+function videoDraw(){t=clockToT(clock);paintMotion(clock);ui();}
+function tick(now){
+  if(videoMode&&playing){
+    if(last!=null){
+      const dt=Math.min(.1,(now-last)/1000);
+      clock+=dt;
+      if(clock>=loopLen()){ if(loopOn) clock-=loopLen(); else {clock=loopLen();playing=false;} }
+      videoDraw();
+    }
+    last=now;
+  } else last=null;
+  requestAnimationFrame(tick);
+}
+function scrubTo(e){const r=tl.getBoundingClientRect();clock=cl((e.clientX-r.left)/r.width)*loopLen();videoDraw();}
+let dragging=false;
+tl.addEventListener("pointerdown",e=>{dragging=true;tl.setPointerCapture(e.pointerId);playing=false;scrubTo(e);});
+tl.addEventListener("pointermove",e=>{if(dragging)scrubTo(e);});
+tl.addEventListener("pointerup",()=>{dragging=false;});
+tl.addEventListener("keydown",e=>{
+  if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();playing=false;
+    clock=Math.max(0,Math.min(loopLen(),clock+(e.key==="ArrowRight"?.1:-.1)*(e.shiftKey?10:1)));videoDraw();}
+});
+document.addEventListener("keydown",e=>{
+  if(videoMode&&e.code==="Space"&&!/INPUT|TEXTAREA|BUTTON/.test(document.activeElement.tagName)){e.preventDefault();togglePlay();}
+});
+
+/* --- motion controls --- */
+function syncJson(){document.getElementById("json").value=JSON.stringify(Object.assign({},S,{motion:M}));}
+const playBtn=document.getElementById("vidPlay");
+function togglePlay(){if(!playing&&clock>=loopLen())clock=0;playing=!playing;ui();}
+playBtn.onclick=togglePlay;
+document.getElementById("vidRestart").onclick=()=>{clock=0;playing=true;videoDraw();};
+const loopBtn=document.getElementById("vidLoop");
+loopBtn.onclick=()=>{loopOn=!loopOn;loopBtn.setAttribute("aria-pressed",String(loopOn));};
+const vidRatiosEl=document.getElementById("vidRatios");
+Object.keys(RATIOS).forEach(r=>{
+  const b=document.createElement("button");b.className="btn";b.textContent=r;b.dataset.r=r;
+  b.onclick=()=>{S.ratio=r;sync();rebuildMotion();syncVidExport();};vidRatiosEl.appendChild(b);
+});
+
+/* --- video export: renders the loop frame by frame off the live math (not
+   the visible canvas) at the chosen resolution, then encodes it in-browser
+   with MediaRecorder — the highest quality the browser itself can produce,
+   no server round-trip. When the browser supports manual frame stepping
+   (CanvasCaptureMediaStreamTrack.requestFrame), every frame is rendered and
+   pushed one at a time, so the output is exactly 600 unique frames over the
+   10s loop regardless of how fast the machine can draw; otherwise it falls
+   back to a real-time capture at a fixed 60fps. */
+let VSCALE=4;
+const vidScalesEl=document.getElementById("vidScales");
+[1,2,3,4].forEach(m=>{
+  const b=document.createElement("button");
+  b.className="btn";b.textContent=m+"x";b.dataset.m=m;
+  b.onclick=()=>{VSCALE=m;syncVidExport();};
+  vidScalesEl.appendChild(b);
+});
+let VFMT="mp4";
+const vidFormatsEl=document.getElementById("vidFormats");
+[["mp4","MP4"],["webm","WebM"]].forEach(f=>{
+  const b=document.createElement("button");
+  b.className="btn";b.textContent=f[1];b.dataset.f=f[0];
+  b.onclick=()=>{VFMT=f[0];syncVidExport();};
+  vidFormatsEl.appendChild(b);
+});
+function vidWH(){return [Math.round(SIZES[S.ratio][0]*VSCALE), Math.round(SIZES[S.ratio][1]*VSCALE)];}
+function syncVidExport(){
+  vidScalesEl.querySelectorAll(".btn").forEach(b=>b.setAttribute("aria-pressed",String(+b.dataset.m===VSCALE)));
+  vidFormatsEl.querySelectorAll(".btn").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.f===VFMT)));
+  const [w,h]=vidWH();
+  document.getElementById("vidExRes").textContent=w+" × "+h+" px  ·  "+fmtS(loopLen()).replace(" ","")+" loop @ 60fps  ·  "+VFMT.toUpperCase();
+}
+const railEl=document.querySelector(".rail");
+function setExportBusy(b){railEl.style.opacity=b?.55:"";railEl.style.pointerEvents=b?"none":"";}
+function pickVideoMime(fmt){
+  const cands=fmt==="mp4"
+    ?["video/mp4;codecs=avc1.640033","video/mp4;codecs=avc1","video/mp4;codecs=h264","video/mp4"]
+    :["video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"];
+  for(const m of cands){ if(window.MediaRecorder&&MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(m)) return m; }
+  return null;
+}
+/* Two export paths, tried in order:
+
+   1) WebCodecs + a muxer (window.WebMMuxer, inlined above). Every frame is
+      rendered off the live math and stamped with a timestamp WE assign
+      (i/60 s), completely independent of how long the render itself takes.
+      This is the only way to guarantee the exported file is really a 10s /
+      60fps video: the alternative (captureStream + MediaRecorder) times
+      every frame off the real wall clock at the moment it's captured, so if
+      600 frames get pushed faster than real time the recording comes out as
+      a garbled sub-second clip, and if rendering can't keep up with 60fps
+      (easily possible at 4x scale) it comes out in slow motion instead.
+   2) Falls back to captureStream + MediaRecorder, paced to real 60fps, for
+      browsers without WebCodecs encode support. */
+/* H.264 levels: [level byte, max macroblocks per frame, max macroblocks per second].
+   The codec string has to name a level big enough for the frame, or the encoder
+   refuses it, so we start at the smallest level that fits and walk upwards. */
+const AVC_LEVELS=[[0x28,8192,245760],[0x2A,8704,522240],[0x32,22080,589824],[0x33,36864,983040],
+  [0x34,36864,2073600],[0x3C,139264,4177920],[0x3D,139264,8355840],[0x3E,139264,16711680]];
+function avcCandidates(w,h,FPS){
+  const mbs=Math.ceil(w/16)*Math.ceil(h/16), rate=mbs*FPS, out=[];
+  const lv=AVC_LEVELS.filter(l=>l[1]>=mbs&&l[2]>=rate);
+  for(const prof of ["6400","4d00","4200"])      /* High, Main, Baseline */
+    for(const l of lv) out.push({codec:"avc1."+prof+("0"+l[0].toString(16)).slice(-2),mux:"mp4",avc:{format:"avc"}});
+  return out;
+}
+/* HEVC levels: [level_idc (level x 30), max luma samples per frame, max luma samples per second].
+   Built for frames past 4K, which is exactly where H.264 encoders give up. */
+const HEVC_LEVELS=[[120,8912896,267386880],[123,8912896,534773760],[150,35651584,534773760],
+  [153,35651584,1069547520],[156,35651584,2139095040],[180,35651584,1069547520],
+  [183,35651584,2139095040],[186,35651584,4278190080]];
+function hevcCandidates(w,h,FPS){
+  const px=w*h, rate=px*FPS, out=[];
+  const lv=HEVC_LEVELS.filter(l=>l[1]>=px&&l[2]>=rate);
+  for(const tag of ["hvc1","hev1"])
+    for(const l of lv) out.push({codec:tag+".1.6.L"+l[0]+".B0",mux:"mp4",muxCodec:"hevc",hevc:{format:"hevc"},label:"HEVC"});
+  return out;
+}
+async function pickWebCodecsConfig(w,h,bps,FPS,fmt){
+  if(!window.VideoEncoder||!window.VideoFrame) return null;
+  let cands;
+  if(fmt==="mp4"){ if(!window.Mp4Muxer) return null;
+    cands=avcCandidates(w,h,FPS).map(c=>Object.assign(c,{muxCodec:"avc",label:"H.264"})).concat(hevcCandidates(w,h,FPS)); }
+  else{ if(!window.WebMMuxer) return null;
+    cands=[{codec:"vp09.00.10.08",webmCodec:"V_VP9",mux:"webm"},{codec:"vp8",webmCodec:"V_VP8",mux:"webm"}]; }
+  const rates=fmt==="mp4"?[...new Set([bps,Math.min(bps,80e6),Math.min(bps,40e6)])]:[bps];
+  for(const c of cands) for(const hw of ["no-preference","prefer-hardware","prefer-software"]) for(const rate of rates){
+    try{
+      const q={codec:c.codec,width:w,height:h,bitrate:rate,framerate:FPS,hardwareAcceleration:hw};
+      if(c.avc) q.avc=c.avc;
+      if(c.hevc) q.hevc=c.hevc;
+      const r=await VideoEncoder.isConfigSupported(q);
+      if(r&&r.supported&&await probeEncoder(q)) return Object.assign({},c,{hw,bps:rate});
+    }catch(_){/* try next candidate */}
+  }
+  return null;
+}
+/* Encode 3 real frames and confirm the encoder actually emitted data. */
+async function probeEncoder(q){
+  let bytes=0, err=null, enc;
+  try{
+    enc=new VideoEncoder({output:ch=>{bytes+=ch.byteLength;},error:e=>{err=e;}});
+    enc.configure(q);
+    const off=document.createElement("canvas"); off.width=q.width; off.height=q.height;
+    const g=off.getContext("2d"); if(!g||off.width!==q.width) return false;
+    for(let i=0;i<3;i++){
+      g.fillStyle=i%2?"#000":"#222"; g.fillRect(0,0,q.width,q.height);
+      const f=new VideoFrame(off,{timestamp:i*16667,duration:16667});
+      enc.encode(f,{keyFrame:i===0}); f.close();
+    }
+    await Promise.race([enc.flush(),new Promise((_,rj)=>setTimeout(()=>rj(new Error("timeout")),8000))]);
+  }catch(e){ err=err||e; }
+  try{ enc&&enc.state!=="closed"&&enc.close(); }catch(_){}
+  return !err&&bytes>0;
+}
+/* Largest scale this browser can actually encode for the current format. */
+async function maxWorkingScale(fmt,FPS){
+  for(let m=VSCALE-1;m>=1;m--){
+    const w=SIZES[S.ratio][0]*m, h=SIZES[S.ratio][1]*m;
+    const bps=Math.min(200e6,Math.round(w*h*FPS*.15));
+    if(await pickWebCodecsConfig(w,h,bps,FPS,fmt).catch(()=>null)) return m;
+  }
+  return 0;
+}
+async function exportVideoWebCodecs(cfg,w,h,FPS,FRAMES,bps,btn){
+  const isMp4=cfg.mux==="mp4";
+  const {Muxer,ArrayBufferTarget}=isMp4?window.Mp4Muxer:window.WebMMuxer;
+  const muxer=isMp4
+    ? new Muxer({target:new ArrayBufferTarget(),fastStart:"in-memory",
+        video:{codec:cfg.muxCodec||"avc",width:w,height:h,frameRate:FPS}})
+    : new Muxer({target:new ArrayBufferTarget(),video:{codec:cfg.webmCodec,width:w,height:h,frameRate:FPS}});
+  let failed=null;
+  const encoder=new VideoEncoder({
+    output:(chunk,meta)=>muxer.addVideoChunk(chunk,meta),
+    error:e=>{failed=e;}
+  });
+  const ecfg={codec:cfg.codec,width:w,height:h,bitrate:cfg.bps||bps,framerate:FPS,hardwareAcceleration:cfg.hw||"no-preference"};
+  if(cfg.avc) ecfg.avc=cfg.avc;
+  if(cfg.hevc) ecfg.hevc=cfg.hevc;
+  encoder.configure(ecfg);
+  const off=document.createElement("canvas"); off.width=w; off.height=h;
+  const octx=off.getContext("2d");
+  const frameUs=1e6/FPS;
+  for(let i=0;i<FRAMES;i++){
+    if(failed) throw failed;
+    paintMotionTo(octx,w,h,i/FPS);
+    const frame=new VideoFrame(off,{timestamp:Math.round(i*frameUs),duration:Math.round(frameUs)});
+    encoder.encode(frame,{keyFrame:i%(FPS*2)===0});
+    frame.close();
+    btn.textContent="Rendering "+Math.round((i+1)/FRAMES*100)+"%";
+    /* keep the encoder's internal queue from growing unbounded if it can't
+       keep up with how fast we're feeding it frames */
+    if(encoder.encodeQueueSize>4){
+      while(encoder.encodeQueueSize>4) await new Promise(r=>setTimeout(r,1));
+    } else {
+      await new Promise(r=>setTimeout(r,0));
+    }
+  }
+  await encoder.flush();
+  if(failed) throw failed;
+  encoder.close();
+  muxer.finalize();
+  return new Blob([muxer.target.buffer],{type:isMp4?"video/mp4":"video/webm"});
+}
+async function exportVideoRecorder(w,h,FPS,FRAMES,bps,btn){
+  const mime=pickVideoMime(VFMT);
+  if(!window.MediaRecorder||!mime) throw new Error("Not supported");
+  const off=document.createElement("canvas"); off.width=w; off.height=h;
+  const octx=off.getContext("2d");
+  const vname="lineblend_loop_"+S.ratio.replace(":","x")+"_"+w+"x"+h+"."+(mime.indexOf("mp4")>=0?"mp4":"webm");
+  const stream=off.captureStream(0);
+  const track=stream.getVideoTracks()[0];
+  const manual=typeof track.requestFrame==="function";
+  const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:bps});
+  const chunks=[];
+  rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
+  const done=new Promise(res=>{rec.onstop=res;});
+  rec.start();
+  if(manual){
+    /* requestFrame() timestamps each frame with the real wall clock at the
+       moment it's called. Pushing all 600 frames back-to-back (yielding only
+       every few frames) captures them within a fraction of a second of real
+       time, so the recording comes out as a garbled sub-second clip instead
+       of a real 10s video, even though every frame's pixels are correct.
+       Pacing each call to the true 60fps interval (catching up rather than
+       over-sleeping if a frame renders slowly) makes the captured stream
+       actually span close to 10 real seconds. This still can't fully match
+       the WebCodecs path above if rendering itself is slower than 1/60s per
+       frame, which is why that path is tried first. */
+    const frameMs=1000/FPS;
+    let nextT=performance.now();
+    for(let i=0;i<FRAMES;i++){
+      paintMotionTo(octx,w,h,i/FPS);
+      track.requestFrame();
+      btn.textContent="Rendering "+Math.round((i+1)/FRAMES*100)+"%";
+      nextT+=frameMs;
+      const wait=nextT-performance.now();
+      await new Promise(r=>setTimeout(r,Math.max(0,wait)));
+    }
+    rec.stop();
+  } else {
+    await new Promise(res=>{
+      let start=null;
+      function step(now){
+        if(start===null) start=now;
+        const c=Math.min(loopLen(),(now-start)/1000);
+        paintMotionTo(octx,w,h,c);
+        btn.textContent="Rendering "+Math.round(c/loopLen()*100)+"%";
+        if(c<loopLen()) requestAnimationFrame(step); else { rec.stop(); res(); }
+      }
+      requestAnimationFrame(step);
+    });
+  }
+  await done;
+  try{track.stop();}catch(_){}
+  const out=new Blob(chunks,{type:mime.split(";")[0]});
+  if(out.size<1024) throw new Error("Recorder produced no video");
+  return {blob:out, vname};
+}
+async function exportVideo(btn){
+  const [w,h]=vidWH(), FPS=60, FRAMES=Math.round(loopLen()*FPS);
+  const bps=Math.min(200e6, Math.round(w*h*FPS*.15));
+  setExportBusy(true); btn.disabled=true;
+  let blob,vname;
+  const wc=await pickWebCodecsConfig(w,h,bps,FPS,VFMT).catch(()=>null);
+  if(wc){
+    try{
+      vname="lineblend_loop_"+S.ratio.replace(":","x")+"_"+w+"x"+h+"."+VFMT;
+      blob=await exportVideoWebCodecs(wc,w,h,FPS,FRAMES,bps,btn);
+      if(wc.label) document.getElementById("vidExportNote").textContent=
+        wc.label==="HEVC"
+          ?"Encoded as HEVC (H.265) MP4, the codec built for frames past 4K. It plays in QuickTime, Keynote, Safari and Premiere; Windows needs the free HEVC Video Extensions."
+          :"Encoded as H.264 MP4, which plays everywhere.";
+    }catch(_){ blob=null; } /* fall through to the recorder path below */
+  }
+  if(blob&&blob.size<1024) blob=null;
+  if(!blob&&VSCALE<=2){
+    try{
+      const r=await exportVideoRecorder(w,h,FPS,FRAMES,bps,btn);
+      blob=r.blob; vname=r.vname;
+    }catch(_){ blob=null; }
+  }
+  if(!blob){
+    btn.textContent="Checking sizes";
+    const m=VSCALE>1?await maxWorkingScale(VFMT,FPS):0;
+    setExportBusy(false); btn.disabled=false;
+    const note=document.getElementById("vidExportNote");
+    if(m){
+      note.textContent="This browser can't encode "+VFMT.toUpperCase()+" at "+w+" × "+h+". The largest size that works here is "+m+"x ("+SIZES[S.ratio][0]*m+" × "+SIZES[S.ratio][1]*m+")."+
+        (VFMT==="mp4"?" For full size, export WebM at "+VSCALE+"x and convert it to MP4 with ffmpeg.":"");
+      return bail(btn,"Too large, try "+m+"x");
+    }
+    note.textContent="This browser can't encode "+VFMT.toUpperCase()+" video. Try "+(VFMT==="mp4"?"WebM, or ":"")+"Chrome or Edge on desktop.";
+    return bail(btn,"Not supported here");
+  }
+  setExportBusy(false); btn.disabled=false;
+  await offer(btn,blob,vname);
+}
+document.getElementById("vidExportBtn").onclick=e=>exportVideo(e.currentTarget);
+const mctrls={};
+document.querySelectorAll(".mctrl").forEach(el=>{
+  const k=el.dataset.k,id="m_"+k;
+  el.innerHTML='<div class="row"><label for="'+id+'">'+el.dataset.label+'</label><output></output></div>'+
+    '<input type="range" id="'+id+'" min="'+el.dataset.min+'" max="'+el.dataset.max+'" step="'+el.dataset.step+'">'+
+    (el.dataset.hint?'<div class="hint">'+el.dataset.hint+'</div>':'');
+  const input=el.querySelector("input"), out=el.querySelector("output");
+  const show=()=>{const v=M[k];
+    out.textContent=el.dataset.lines?Math.max(2,Math.round(Math.round(S.count)*v))+" of "+Math.round(S.count):
+      el.dataset.pct?Math.round(v*100)+"%":v.toFixed(el.dataset.dec?+el.dataset.dec:2)+(el.dataset.unit||"");};
+  input.value=M[k]; show();
+  input.addEventListener("input",()=>{const old=M[k];M[k]=parseFloat(input.value);show();
+    if(k==="len"){clock=clock/old*M[k];syncVidExport();}
+    if(k==="hold"||k==="len")buildTimeline();rebuildMotion();});
+  mctrls[k]={input,show};
+});
+document.getElementById("vidThick").onchange=e=>{M.thick=e.target.checked;syncJson();videoDraw();};
+function rebuildMotion(){prepare();videoSize();syncJson();document.querySelectorAll(".mctrl input").forEach(i=>i.dispatchEvent(new Event("change")));videoDraw();}
+
+/* ---- Line blend generator <-> Video creator navigation ---- */
+const railTitle=document.getElementById("railTitle");
+const generatorView=document.getElementById("generatorView"), videoView=document.getElementById("videoView");
+const modeNavFwd=document.getElementById("modeNavFwd"), modeNavBack=document.getElementById("modeNavBack");
+function setMode(video){
+  videoMode=video;
+  generatorView.hidden=video; videoView.hidden=!video;
+  modeNavFwd.hidden=video; modeNavBack.hidden=!video;
+  tl.hidden=!video; tlFoot.hidden=!video; stageFootStatic.hidden=video;
+  railTitle.textContent=video?"Video creator":"Line blend generator";
+  if(video){ sync(); rebuildMotion(); syncVidExport(); } else draw();
+}
+document.getElementById("toVideoNav").onclick=()=>setMode(true);
+document.getElementById("toGenNav").onclick=()=>setMode(false);
+
+let rt;window.addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(()=>{ if(videoMode){videoSize();videoDraw();} else draw(); },90);});
+buildTimeline();
+syncVidExport();
+sync();draw();
+requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
+
+</body></html>
